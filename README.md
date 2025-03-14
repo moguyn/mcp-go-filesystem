@@ -1,7 +1,7 @@
 # Go Filesystem MCP Server
 
-[![Go CI](https://github.com/moguyn/go-filesystem/actions/workflows/ci.yml/badge.svg)](https://github.com/moguyn/go-filesystem/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/moguyn/go-filesystem/branch/main/graph/badge.svg)](https://codecov.io/gh/moguyn/go-filesystem)
+[![Go CI](https://github.com/moguyn/mcp-go-filesystem/actions/workflows/ci.yml/badge.svg)](https://github.com/moguyn/mcp-go-filesystem/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/moguyn/mcp-go-filesystem/branch/main/graph/badge.svg)](https://codecov.io/gh/moguyn/mcp-go-filesystem)
 
 Go implementation of the Model Context Protocol (MCP) server for filesystem operations.
 
