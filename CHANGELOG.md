@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.4](https://github.com/moguyn/mcp-go-filesystem/compare/v0.0.3...v0.0.4) (2025-03-14)
+
+
+### Bug Fixes
+
+* goreleaser config ([#9](https://github.com/moguyn/mcp-go-filesystem/issues/9)) ([7943119](https://github.com/moguyn/mcp-go-filesystem/commit/79431192da413202e75ac33dc328731833dacce1))
+
 ## [0.0.3](https://github.com/moguyn/mcp-go-filesystem/compare/v0.0.2...v0.0.3) (2025-03-14)
 
 
