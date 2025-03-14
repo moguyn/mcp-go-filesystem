@@ -293,7 +293,7 @@ func handleWriteFile(request mcp.CallToolRequest, allowedDirectories []string) (
 
 	// Create parent directories if they don't exist
 	dir := filepath.Dir(validPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Error creating directories: %v", err)), nil
 	}
 
@@ -305,7 +305,7 @@ func handleWriteFile(request mcp.CallToolRequest, allowedDirectories []string) (
 		flag = os.O_WRONLY | os.O_CREATE | os.O_TRUNC
 	}
 
-	file, err := os.OpenFile(validPath, flag, 0644)
+	file, err := os.OpenFile(validPath, flag, 0600)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Error opening file: %v", err)), nil
 	}
@@ -337,7 +337,7 @@ func handleCreateDirectory(request mcp.CallToolRequest, allowedDirectories []str
 	}
 
 	// Create directory
-	if err := os.MkdirAll(validPath, 0755); err != nil {
+	if err := os.MkdirAll(validPath, 0750); err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Error creating directory: %v", err)), nil
 	}
 
@@ -484,7 +484,7 @@ func handleMoveFile(request mcp.CallToolRequest, allowedDirectories []string) (*
 
 	// Create parent directories if they don't exist
 	destDir := filepath.Dir(validDestination)
-	if err := os.MkdirAll(destDir, 0755); err != nil {
+	if err := os.MkdirAll(destDir, 0750); err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Error creating destination directories: %v", err)), nil
 	}
 
@@ -689,7 +689,7 @@ func handleEditFile(request mcp.CallToolRequest, allowedDirectories []string) (*
 	}
 
 	// Write file
-	if err := os.WriteFile(validPath, []byte(newContent), 0644); err != nil {
+	if err := os.WriteFile(validPath, []byte(newContent), 0600); err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Error writing file: %v", err)), nil
 	}
 
