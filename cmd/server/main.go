@@ -5,7 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/modelcontextprotocol/server-filesystem/internal/server"
+	"github.com/mark3labs/mcp-go/server"
+	"github.com/modelcontextprotocol/server-filesystem/internal/tools"
 )
 
 // Version information set by build flags
@@ -48,7 +49,7 @@ func main() {
 	allowedDirs := make([]string, 0, len(os.Args)-1)
 	for _, dir := range os.Args[1:] {
 		// Normalize and resolve path
-		expandedPath := server.ExpandHome(dir)
+		expandedPath := tools.ExpandHome(dir)
 		absPath, err := filepath.Abs(expandedPath)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error resolving path %s: %v\n", dir, err)
@@ -70,13 +71,21 @@ func main() {
 		allowedDirs = append(allowedDirs, normalizedPath)
 	}
 
+	// Create a new MCP server
+	s := server.NewMCPServer(
+		"mcp-go-filesystem",
+		Version,
+	)
+
+	// Register all filesystem tools
+	tools.RegisterTools(s, allowedDirs)
+
 	// Start the MCP server
 	fmt.Fprintln(os.Stderr, "Secure MCP Filesystem Server running on stdio")
 	fmt.Fprintln(os.Stderr, "Allowed directories:", allowedDirs)
 
-	// Create and run the server
-	s := server.NewServer(allowedDirs)
-	if err := s.Run(); err != nil {
+	// Start the server using stdio
+	if err := server.ServeStdio(s); err != nil {
 		fmt.Fprintf(os.Stderr, "Fatal error running server: %v\n", err)
 		os.Exit(1)
 	}

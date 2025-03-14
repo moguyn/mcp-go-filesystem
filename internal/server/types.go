@@ -3,7 +3,7 @@ package server
 // Request represents an incoming JSON-RPC request
 type Request struct {
 	JSONRPC string                 `json:"jsonrpc"`
-	ID      string                 `json:"id"`
+	ID      interface{}            `json:"id"`
 	Method  string                 `json:"method"`
 	Params  map[string]interface{} `json:"params"`
 }
@@ -11,21 +11,41 @@ type Request struct {
 // Response represents a successful JSON-RPC response
 type Response struct {
 	JSONRPC string      `json:"jsonrpc"`
-	ID      string      `json:"id"`
+	ID      interface{} `json:"id"`
 	Result  interface{} `json:"result"`
 }
 
 // ErrorResponse represents an error JSON-RPC response
 type ErrorResponse struct {
-	JSONRPC string `json:"jsonrpc"`
-	ID      string `json:"id,omitempty"`
-	Error   Error  `json:"error"`
+	JSONRPC string      `json:"jsonrpc"`
+	ID      interface{} `json:"id"`
+	Error   Error       `json:"error"`
 }
 
 // Error represents a JSON-RPC error
 type Error struct {
-	Code    int    `json:"code,omitempty"`
+	Code    int    `json:"code"`
 	Message string `json:"message"`
+}
+
+// Implementation represents client or server information
+type Implementation struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+}
+
+// InitializeParams represents the parameters for an initialize request
+type InitializeParams struct {
+	ClientInfo      Implementation         `json:"clientInfo"`
+	ProtocolVersion string                 `json:"protocolVersion"`
+	Capabilities    map[string]interface{} `json:"capabilities"`
+}
+
+// InitializeResult represents the response to an initialize request
+type InitializeResult struct {
+	ServerInfo      Implementation         `json:"serverInfo"`
+	ProtocolVersion string                 `json:"protocolVersion"`
+	Capabilities    map[string]interface{} `json:"capabilities"`
 }
 
 // Tool represents a tool that can be called by the client
