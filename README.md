@@ -16,7 +16,7 @@ Go implementation of the Model Context Protocol (MCP) server for filesystem oper
 
 ### Prerequisites
 
-- Go 1.18 or later
+- Go 1.24 or later
 - Make (optional, for using the Makefile)
 - Docker (optional, for containerization)
 
