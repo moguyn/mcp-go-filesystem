@@ -185,6 +185,7 @@ func RegisterTools(s *server.MCPServer, allowedDirectories []string) {
 	// Register list_allowed_directories tool
 	listAllowedDirectoriesTool := mcp.NewTool("list_allowed_directories",
 		mcp.WithDescription("List all directories that the server is allowed to access."),
+		mcp.WithString("properties", mcp.Description("Empty properties object")),
 	)
 	s.AddTool(listAllowedDirectoriesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return handleListAllowedDirectories(request, allowedDirectories)
