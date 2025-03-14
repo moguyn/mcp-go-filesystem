@@ -22,20 +22,3 @@ builds:
 
 snapshot:
   version_template: "{{ .Version }}-SNAPSHOT-{{ .ShortCommit }}"
-
-dockers:
-  - image_templates:
-      - "moguyn/mcp-go-filesystem:{{ .Version }}"
-      - "moguyn/mcp-go-filesystem:latest"
-    dockerfile: Dockerfile
-    build_flag_templates:
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.name={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.source={{.GitURL}}"
-    goos: linux
-    goarch: amd64
-    ids:
-      - mcp-go-filesystem-build
