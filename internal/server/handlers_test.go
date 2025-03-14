@@ -608,21 +608,232 @@ func TestHandleEditFileError(t *testing.T) {
 
 	// Test with invalid path type
 	args = map[string]interface{}{
-		"path":    123, // Not a string
-		"content": "new content",
+		"path":  123, // Not a string
+		"edits": []interface{}{},
 	}
 	_, err = s.handleEditFile(args)
 	if err == nil {
 		t.Errorf("Expected error for invalid path type, got nil")
 	}
 
-	// Test with invalid content type
+	// Test with invalid edits type
 	args = map[string]interface{}{
-		"path":    "/test/file.txt",
-		"content": 123, // Not a string
+		"path":  "/test/file.txt",
+		"edits": "not an array",
 	}
 	_, err = s.handleEditFile(args)
 	if err == nil {
-		t.Errorf("Expected error for invalid content type, got nil")
+		t.Errorf("Expected error for invalid edits type, got nil")
+	}
+}
+
+// testServer is a custom server for testing with a mock ValidatePath method
+type testServer struct {
+	Server
+	tempDir string
+}
+
+// ValidatePath is a mock implementation for testing
+func (s *testServer) ValidatePath(path string) (string, error) {
+	// For testing, just return the path if it's within the temp directory
+	if strings.HasPrefix(path, s.tempDir) {
+		return path, nil
+	}
+	return "", fmt.Errorf("access denied - path outside allowed directories")
+}
+
+// handleEditFile delegates to the Server's handleEditFile method
+func (s *testServer) handleEditFile(args map[string]interface{}) (ToolResponse, error) {
+	return s.Server.handleEditFile(args)
+}
+
+// TestHandleReadMultipleFiles tests the handleReadMultipleFiles function
+func TestHandleReadMultipleFiles(t *testing.T) {
+	// Create a server with a buffer writer for testing
+	var buf bytes.Buffer
+	writer := bufio.NewWriter(&buf)
+
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "read-multiple-files-test-")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create test files
+	file1Path := filepath.Join(tempDir, "file1.txt")
+	file2Path := filepath.Join(tempDir, "file2.txt")
+	nonExistentPath := filepath.Join(tempDir, "nonexistent.txt")
+
+	if err := os.WriteFile(file1Path, []byte("File 1 content"), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	if err := os.WriteFile(file2Path, []byte("File 2 content"), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	s := &Server{
+		allowedDirectories: []string{tempDir},
+		writer:             writer,
+	}
+
+	// Test with valid files
+	args := map[string]interface{}{
+		"paths": []interface{}{file1Path, file2Path},
+	}
+
+	response, err := s.handleReadMultipleFiles(args)
+	if err != nil {
+		t.Fatalf("handleReadMultipleFiles() returned error: %v", err)
+	}
+
+	// Verify response
+	if len(response.Content) != 1 {
+		t.Fatalf("Expected 1 content item, got %d", len(response.Content))
+	}
+
+	if response.Content[0].Type != "text" {
+		t.Errorf("Expected content type 'text', got '%s'", response.Content[0].Type)
+	}
+
+	// Check if the response text contains both file paths
+	responseText := response.Content[0].Text
+	if !strings.Contains(responseText, file1Path) || !strings.Contains(responseText, file2Path) {
+		t.Errorf("Response text does not contain both file paths")
+	}
+
+	// Test with invalid file path - this should not return an error but include error message in the response
+	args = map[string]interface{}{
+		"paths": []interface{}{nonExistentPath},
+	}
+
+	response, err = s.handleReadMultipleFiles(args)
+	if err != nil {
+		t.Fatalf("handleReadMultipleFiles() with nonexistent file returned error: %v", err)
+	}
+
+	// Check if the response contains an error message for the nonexistent file
+	responseText = response.Content[0].Text
+	if !strings.Contains(responseText, "Error") {
+		t.Errorf("Expected error message in response for nonexistent file, got: %s", responseText)
+	}
+}
+
+// TestBuildDirectoryTree tests the buildDirectoryTree function
+func TestBuildDirectoryTree(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "directory-tree-test-")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create test files and directories
+	file1Path := filepath.Join(tempDir, "file1.txt")
+	subDirPath := filepath.Join(tempDir, "subdir")
+	subFilePath := filepath.Join(subDirPath, "subfile.txt")
+
+	if err := os.WriteFile(file1Path, []byte("File 1 content"), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	if err := os.Mkdir(subDirPath, 0755); err != nil {
+		t.Fatalf("Failed to create subdirectory: %v", err)
+	}
+
+	if err := os.WriteFile(subFilePath, []byte("Subfile content"), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	// Create a server for testing
+	s := &Server{
+		allowedDirectories: []string{tempDir},
+	}
+
+	// Build directory tree
+	tree, err := s.buildDirectoryTree(tempDir)
+	if err != nil {
+		t.Fatalf("buildDirectoryTree() returned error: %v", err)
+	}
+
+	// Verify tree structure
+	if len(tree) < 2 {
+		t.Errorf("Expected at least 2 entries in tree, got %d", len(tree))
+	}
+
+	// Find the subdirectory in the tree
+	var subDirFound bool
+	for _, entry := range tree {
+		if entry.Name == "subdir" && entry.Type == "directory" {
+			subDirFound = true
+
+			// Check if it has children
+			if len(entry.Children) != 1 {
+				t.Errorf("Expected 1 child in subdir, got %d", len(entry.Children))
+			}
+			break
+		}
+	}
+
+	if !subDirFound {
+		t.Fatalf("Subdirectory 'subdir' not found in tree")
+	}
+}
+
+// TestSearchFiles tests the searchFiles function
+func TestSearchFiles(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "search-files-test-")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create test files with specific content
+	file1Path := filepath.Join(tempDir, "file1.txt")
+	file2Path := filepath.Join(tempDir, "file2.go")
+
+	if err := os.WriteFile(file1Path, []byte("This is a test file with SEARCHABLE content"), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	if err := os.WriteFile(file2Path, []byte("func main() {\n\tfmt.Println(\"Hello, World!\")\n}"), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	// Create a server for testing
+	s := &Server{
+		allowedDirectories: []string{tempDir},
+	}
+
+	// Test search by filename
+	results, err := s.searchFiles(tempDir, "file1", []string{})
+	if err != nil {
+		t.Fatalf("searchFiles() returned error: %v", err)
+	}
+
+	if len(results) != 1 {
+		t.Errorf("Expected 1 search result for filename, got %d", len(results))
+	}
+
+	// Test search by content in filename
+	results, err = s.searchFiles(tempDir, "go", []string{})
+	if err != nil {
+		t.Fatalf("searchFiles() with file pattern returned error: %v", err)
+	}
+
+	if len(results) != 1 {
+		t.Errorf("Expected 1 search result for file extension, got %d", len(results))
+	}
+
+	// Test search with no matches
+	results, err = s.searchFiles(tempDir, "nonexistent", []string{})
+	if err != nil {
+		t.Fatalf("searchFiles() with no matches returned error: %v", err)
+	}
+
+	if len(results) != 0 {
+		t.Errorf("Expected 0 search results for nonexistent query, got %d", len(results))
 	}
 }
