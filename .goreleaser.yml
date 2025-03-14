@@ -3,7 +3,7 @@ project_name: go-filesystem
 builds:
   - binary: mcp-go-filesystem
     id: mcp-go-filesystem-build
-    main: .
+    main: ./build
     goos:
       - linux
       - darwin
