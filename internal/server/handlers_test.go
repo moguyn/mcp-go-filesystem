@@ -366,3 +366,263 @@ func TestHandleListDirectorySimple(t *testing.T) {
 		t.Error("Expected error for non-existent directory, got nil")
 	}
 }
+
+// TestHandleReadFileError tests error cases for the handleReadFile function
+func TestHandleReadFileError(t *testing.T) {
+	// Create a server with test directories
+	s := &Server{
+		allowedDirectories: []string{"/test"},
+	}
+
+	// Test with missing path parameter
+	args := map[string]interface{}{}
+	_, err := s.handleReadFile(args)
+	if err == nil {
+		t.Errorf("Expected error for missing path parameter, got nil")
+	}
+
+	// Test with invalid path type
+	args = map[string]interface{}{
+		"path": 123, // Not a string
+	}
+	_, err = s.handleReadFile(args)
+	if err == nil {
+		t.Errorf("Expected error for invalid path type, got nil")
+	}
+}
+
+// TestHandleWriteFileError tests error cases for the handleWriteFile function
+func TestHandleWriteFileError(t *testing.T) {
+	// Create a server with test directories
+	s := &Server{
+		allowedDirectories: []string{"/test"},
+	}
+
+	// Test with missing parameters
+	args := map[string]interface{}{}
+	_, err := s.handleWriteFile(args)
+	if err == nil {
+		t.Errorf("Expected error for missing parameters, got nil")
+	}
+
+	// Test with invalid path type
+	args = map[string]interface{}{
+		"path":    123, // Not a string
+		"content": "test content",
+	}
+	_, err = s.handleWriteFile(args)
+	if err == nil {
+		t.Errorf("Expected error for invalid path type, got nil")
+	}
+
+	// Test with invalid content type
+	args = map[string]interface{}{
+		"path":    "/test/file.txt",
+		"content": 123, // Not a string
+	}
+	_, err = s.handleWriteFile(args)
+	if err == nil {
+		t.Errorf("Expected error for invalid content type, got nil")
+	}
+}
+
+// TestHandleCreateDirectoryError tests error cases for the handleCreateDirectory function
+func TestHandleCreateDirectoryError(t *testing.T) {
+	// Create a server with test directories
+	s := &Server{
+		allowedDirectories: []string{"/test"},
+	}
+
+	// Test with missing path parameter
+	args := map[string]interface{}{}
+	_, err := s.handleCreateDirectory(args)
+	if err == nil {
+		t.Errorf("Expected error for missing path parameter, got nil")
+	}
+
+	// Test with invalid path type
+	args = map[string]interface{}{
+		"path": 123, // Not a string
+	}
+	_, err = s.handleCreateDirectory(args)
+	if err == nil {
+		t.Errorf("Expected error for invalid path type, got nil")
+	}
+}
+
+// TestHandleListDirectoryError tests error cases for the handleListDirectory function
+func TestHandleListDirectoryError(t *testing.T) {
+	// Create a server with test directories
+	s := &Server{
+		allowedDirectories: []string{"/test"},
+	}
+
+	// Test with missing path parameter
+	args := map[string]interface{}{}
+	_, err := s.handleListDirectory(args)
+	if err == nil {
+		t.Errorf("Expected error for missing path parameter, got nil")
+	}
+
+	// Test with invalid path type
+	args = map[string]interface{}{
+		"path": 123, // Not a string
+	}
+	_, err = s.handleListDirectory(args)
+	if err == nil {
+		t.Errorf("Expected error for invalid path type, got nil")
+	}
+}
+
+// TestHandleDirectoryTreeError tests error cases for the handleDirectoryTree function
+func TestHandleDirectoryTreeError(t *testing.T) {
+	// Create a server with test directories
+	s := &Server{
+		allowedDirectories: []string{"/test"},
+	}
+
+	// Test with missing path parameter
+	args := map[string]interface{}{}
+	_, err := s.handleDirectoryTree(args)
+	if err == nil {
+		t.Errorf("Expected error for missing path parameter, got nil")
+	}
+
+	// Test with invalid path type
+	args = map[string]interface{}{
+		"path": 123, // Not a string
+	}
+	_, err = s.handleDirectoryTree(args)
+	if err == nil {
+		t.Errorf("Expected error for invalid path type, got nil")
+	}
+}
+
+// TestHandleMoveFileError tests error cases for the handleMoveFile function
+func TestHandleMoveFileError(t *testing.T) {
+	// Create a server with test directories
+	s := &Server{
+		allowedDirectories: []string{"/test"},
+	}
+
+	// Test with missing parameters
+	args := map[string]interface{}{}
+	_, err := s.handleMoveFile(args)
+	if err == nil {
+		t.Errorf("Expected error for missing parameters, got nil")
+	}
+
+	// Test with invalid source path type
+	args = map[string]interface{}{
+		"source":      123, // Not a string
+		"destination": "/test/dest.txt",
+	}
+	_, err = s.handleMoveFile(args)
+	if err == nil {
+		t.Errorf("Expected error for invalid source path type, got nil")
+	}
+
+	// Test with invalid destination path type
+	args = map[string]interface{}{
+		"source":      "/test/source.txt",
+		"destination": 123, // Not a string
+	}
+	_, err = s.handleMoveFile(args)
+	if err == nil {
+		t.Errorf("Expected error for invalid destination path type, got nil")
+	}
+}
+
+// TestHandleSearchFilesError tests error cases for the handleSearchFiles function
+func TestHandleSearchFilesError(t *testing.T) {
+	// Create a server with test directories
+	s := &Server{
+		allowedDirectories: []string{"/test"},
+	}
+
+	// Test with missing parameters
+	args := map[string]interface{}{}
+	_, err := s.handleSearchFiles(args)
+	if err == nil {
+		t.Errorf("Expected error for missing parameters, got nil")
+	}
+
+	// Test with invalid root path type
+	args = map[string]interface{}{
+		"root":    123, // Not a string
+		"pattern": "*.txt",
+	}
+	_, err = s.handleSearchFiles(args)
+	if err == nil {
+		t.Errorf("Expected error for invalid root path type, got nil")
+	}
+
+	// Test with invalid pattern type
+	args = map[string]interface{}{
+		"root":    "/test",
+		"pattern": 123, // Not a string
+	}
+	_, err = s.handleSearchFiles(args)
+	if err == nil {
+		t.Errorf("Expected error for invalid pattern type, got nil")
+	}
+}
+
+// TestHandleGetFileInfoError tests error cases for the handleGetFileInfo function
+func TestHandleGetFileInfoError(t *testing.T) {
+	// Create a server with test directories
+	s := &Server{
+		allowedDirectories: []string{"/test"},
+	}
+
+	// Test with missing path parameter
+	args := map[string]interface{}{}
+	_, err := s.handleGetFileInfo(args)
+	if err == nil {
+		t.Errorf("Expected error for missing path parameter, got nil")
+	}
+
+	// Test with invalid path type
+	args = map[string]interface{}{
+		"path": 123, // Not a string
+	}
+	_, err = s.handleGetFileInfo(args)
+	if err == nil {
+		t.Errorf("Expected error for invalid path type, got nil")
+	}
+}
+
+// TestHandleEditFileError tests error cases for the handleEditFile function
+func TestHandleEditFileError(t *testing.T) {
+	// Create a server with test directories
+	s := &Server{
+		allowedDirectories: []string{"/test"},
+	}
+
+	// Test with missing parameters
+	args := map[string]interface{}{}
+	_, err := s.handleEditFile(args)
+	if err == nil {
+		t.Errorf("Expected error for missing parameters, got nil")
+	}
+
+	// Test with invalid path type
+	args = map[string]interface{}{
+		"path":    123, // Not a string
+		"content": "new content",
+	}
+	_, err = s.handleEditFile(args)
+	if err == nil {
+		t.Errorf("Expected error for invalid path type, got nil")
+	}
+
+	// Test with invalid content type
+	args = map[string]interface{}{
+		"path":    "/test/file.txt",
+		"content": 123, // Not a string
+	}
+	_, err = s.handleEditFile(args)
+	if err == nil {
+		t.Errorf("Expected error for invalid content type, got nil")
+	}
+}

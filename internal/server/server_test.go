@@ -388,3 +388,150 @@ func TestExpandHomeReal(t *testing.T) {
 		})
 	}
 }
+
+// TestRunWithError tests the Run method with an error
+func TestRunWithError(t *testing.T) {
+	// Create a server with a buffer writer for testing
+	var buf bytes.Buffer
+	writer := bufio.NewWriter(&buf)
+
+	// Create a reader that returns an error
+	errReader := bufio.NewReader(&ErrorReader{})
+
+	s := &Server{
+		allowedDirectories: []string{"/test"},
+		reader:             errReader,
+		writer:             writer,
+	}
+
+	// Run the server
+	err := s.Run()
+
+	// Verify that an error was returned
+	if err == nil {
+		t.Errorf("Expected error from Run(), got nil")
+	}
+}
+
+// ErrorReader is a reader that always returns an error
+type ErrorReader struct{}
+
+func (r *ErrorReader) Read(p []byte) (n int, err error) {
+	return 0, fmt.Errorf("test error")
+}
+
+// TestHandleCallToolWithInvalidJSON tests the handleCallTool function with invalid JSON
+func TestHandleCallToolWithInvalidArgs(t *testing.T) {
+	// Create a server with a buffer writer for testing
+	var buf bytes.Buffer
+	writer := bufio.NewWriter(&buf)
+	s := &Server{
+		allowedDirectories: []string{"/test"},
+		reader:             nil, // Not needed for this test
+		writer:             writer,
+	}
+
+	// Call the handler with missing arguments
+	s.handleCallTool("test-id", map[string]interface{}{
+		"name": "read_file",
+		// Missing args
+	})
+
+	// Flush the writer to ensure all data is written to the buffer
+	writer.Flush()
+
+	// Verify the output contains an error message
+	output := buf.String()
+	if !strings.Contains(output, "isError") {
+		t.Errorf("Expected error response for missing args, got: %s", output)
+	}
+
+	// Reset the buffer
+	buf.Reset()
+
+	// Call the handler with unknown tool
+	s.handleCallTool("test-id", map[string]interface{}{
+		"name": "unknown_tool",
+		"args": map[string]interface{}{},
+	})
+
+	// Flush the writer to ensure all data is written to the buffer
+	writer.Flush()
+
+	// Verify the output contains an error message
+	output = buf.String()
+	if !strings.Contains(output, "unknown tool") {
+		t.Errorf("Expected error response for unknown tool, got: %s", output)
+	}
+}
+
+// TestSendJSONWithError tests the sendJSON method with an error
+func TestSendJSONWithError(t *testing.T) {
+	// Create a writer that returns an error
+	errWriter := bufio.NewWriter(&ErrorWriter{})
+
+	s := &Server{
+		allowedDirectories: []string{"/test"},
+		reader:             nil, // Not needed for this test
+		writer:             errWriter,
+	}
+
+	// Call sendJSON with a simple message
+	err := s.sendJSON(map[string]interface{}{
+		"test": "value",
+	})
+
+	// Verify that an error was returned
+	if err == nil {
+		t.Errorf("Expected error from sendJSON, got nil")
+	}
+}
+
+// ErrorWriter is a writer that always returns an error
+type ErrorWriter struct{}
+
+func (w *ErrorWriter) Write(p []byte) (n int, err error) {
+	return 0, fmt.Errorf("test error")
+}
+
+// TestSendResponseWithError tests the sendResponse method with an error
+func TestSendResponseWithError(t *testing.T) {
+	// Create a writer that returns an error
+	errWriter := bufio.NewWriter(&ErrorWriter{})
+
+	s := &Server{
+		allowedDirectories: []string{"/test"},
+		reader:             nil, // Not needed for this test
+		writer:             errWriter,
+	}
+
+	// Call sendResponse with a simple message
+	err := s.sendResponse("test-id", map[string]interface{}{
+		"test": "value",
+	})
+
+	// Verify that an error was returned
+	if err == nil {
+		t.Errorf("Expected error from sendResponse, got nil")
+	}
+}
+
+// TestSendErrorResponseWithError tests the sendErrorResponse method with an error
+func TestSendErrorResponseWithError(t *testing.T) {
+	// Create a writer that returns an error
+	errWriter := bufio.NewWriter(&ErrorWriter{})
+
+	s := &Server{
+		allowedDirectories: []string{"/test"},
+		reader:             nil, // Not needed for this test
+		writer:             errWriter,
+	}
+
+	// Call sendErrorResponse with a simple message
+	err := s.sendErrorResponse("test-id")
+
+	// Verify that an error was returned
+	if err == nil {
+		t.Errorf("Expected error from sendErrorResponse, got nil")
+	}
+}
