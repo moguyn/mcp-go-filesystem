@@ -306,7 +306,9 @@ func (s *Server) handleReadFile(args map[string]interface{}) (ToolResponse, erro
 		return ToolResponse{}, err
 	}
 
-	content, err := os.ReadFile(validPath)
+	// Clean the path to prevent path traversal attacks
+	cleanPath := filepath.Clean(validPath)
+	content, err := os.ReadFile(cleanPath)
 	if err != nil {
 		return ToolResponse{}, fmt.Errorf("error reading file: %w", err)
 	}
@@ -341,7 +343,9 @@ func (s *Server) handleReadMultipleFiles(args map[string]interface{}) (ToolRespo
 			continue
 		}
 
-		content, err := os.ReadFile(validPath)
+		// Clean the path to prevent path traversal attacks
+		cleanPath := filepath.Clean(validPath)
+		content, err := os.ReadFile(cleanPath)
 		if err != nil {
 			results = append(results, result+"Error - "+err.Error())
 			continue
@@ -374,11 +378,11 @@ func (s *Server) handleWriteFile(args map[string]interface{}) (ToolResponse, err
 
 	// Ensure parent directory exists
 	dir := filepath.Dir(validPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return ToolResponse{}, fmt.Errorf("error creating parent directory: %w", err)
 	}
 
-	if err := os.WriteFile(validPath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(validPath, []byte(content), 0600); err != nil {
 		return ToolResponse{}, fmt.Errorf("error writing file: %w", err)
 	}
 
@@ -399,7 +403,7 @@ func (s *Server) handleCreateDirectory(args map[string]interface{}) (ToolRespons
 		return ToolResponse{}, err
 	}
 
-	if err := os.MkdirAll(validPath, 0755); err != nil {
+	if err := os.MkdirAll(validPath, 0750); err != nil {
 		return ToolResponse{}, fmt.Errorf("error creating directory: %w", err)
 	}
 
@@ -525,7 +529,7 @@ func (s *Server) handleMoveFile(args map[string]interface{}) (ToolResponse, erro
 
 	// Ensure parent directory of destination exists
 	destDir := filepath.Dir(validDestPath)
-	if err := os.MkdirAll(destDir, 0755); err != nil {
+	if err := os.MkdirAll(destDir, 0750); err != nil {
 		return ToolResponse{}, fmt.Errorf("error creating destination parent directory: %w", err)
 	}
 
@@ -693,7 +697,8 @@ func (s *Server) handleEditFile(args map[string]interface{}) (ToolResponse, erro
 	}
 
 	// Read file content
-	content, err := os.ReadFile(validPath)
+	cleanPath := filepath.Clean(validPath)
+	content, err := os.ReadFile(cleanPath)
 	if err != nil {
 		return ToolResponse{}, fmt.Errorf("error reading file: %w", err)
 	}
@@ -796,7 +801,7 @@ func (s *Server) handleEditFile(args map[string]interface{}) (ToolResponse, erro
 	diff := createUnifiedDiff(string(content), modifiedContent, path)
 
 	if !dryRun {
-		if err := os.WriteFile(validPath, []byte(modifiedContent), 0644); err != nil {
+		if err := os.WriteFile(cleanPath, []byte(modifiedContent), 0600); err != nil {
 			return ToolResponse{}, fmt.Errorf("error writing file: %w", err)
 		}
 	}
