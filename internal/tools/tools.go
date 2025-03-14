@@ -227,6 +227,7 @@ func handleReadFile(request mcp.CallToolRequest, allowedDirectories []string) (*
 	}
 
 	// Read file
+	// #nosec G304 -- validPath has been validated by ValidatePath
 	content, err := os.ReadFile(validPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Error reading file: %v", err)), nil
@@ -259,6 +260,7 @@ func handleReadMultipleFiles(request mcp.CallToolRequest, allowedDirectories []s
 		}
 
 		// Read file
+		// #nosec G304 -- validPath has been validated by ValidatePath
 		content, err := os.ReadFile(validPath)
 		if err != nil {
 			resultBuilder.WriteString(fmt.Sprintf("Error reading %s: %v\n\n", path, err))
@@ -305,6 +307,7 @@ func handleWriteFile(request mcp.CallToolRequest, allowedDirectories []string) (
 		flag = os.O_WRONLY | os.O_CREATE | os.O_TRUNC
 	}
 
+	// #nosec G304 -- validPath has been validated by ValidatePath
 	file, err := os.OpenFile(validPath, flag, 0600)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Error opening file: %v", err)), nil
@@ -677,6 +680,7 @@ func handleEditFile(request mcp.CallToolRequest, allowedDirectories []string) (*
 	}
 
 	// Read file
+	// #nosec G304 -- validPath has been validated by ValidatePath
 	content, err := os.ReadFile(validPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Error reading file: %v", err)), nil
