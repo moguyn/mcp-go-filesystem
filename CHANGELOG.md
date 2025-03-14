@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.7](https://github.com/moguyn/mcp-go-filesystem/compare/v0.0.6...v0.0.7) (2025-03-14)
+
+
+### Bug Fixes
+
+* increase coverage ([#15](https://github.com/moguyn/mcp-go-filesystem/issues/15)) ([89779d3](https://github.com/moguyn/mcp-go-filesystem/commit/89779d391ecdaaff56fc20cf7d0ea2f0ee86db77))
+
 ## [0.0.6](https://github.com/moguyn/mcp-go-filesystem/compare/v0.0.5...v0.0.6) (2025-03-14)
 
 
