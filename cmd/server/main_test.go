@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -150,4 +151,121 @@ func validateAndNormalizePath(dir string) (string, error) {
 	}
 
 	return normalizedPath, nil
+}
+
+// TestMainFunction tests the main function with various arguments
+func TestMainFunction(t *testing.T) {
+	if os.Getenv("TEST_MAIN_FUNCTION") == "1" {
+		// This will be executed when the test spawns a subprocess
+		// We don't actually call main() here to avoid exiting the test process
+		return
+	}
+
+	// Create a temporary directory for testing
+	tempDir := createTempDir(t)
+	defer os.RemoveAll(tempDir)
+
+	// Test cases for different command line arguments
+	testCases := []struct {
+		name          string
+		args          []string
+		expectedError bool
+		expectedText  string
+	}{
+		{
+			name:          "Help flag",
+			args:          []string{"--help"},
+			expectedError: false,
+			expectedText:  "Usage:",
+		},
+		{
+			name:          "Short help flag",
+			args:          []string{"-h"},
+			expectedError: false,
+			expectedText:  "Usage:",
+		},
+		{
+			name:          "No arguments",
+			args:          []string{},
+			expectedError: true,
+			expectedText:  "Usage:",
+		},
+		{
+			name:          "Non-existent directory",
+			args:          []string{filepath.Join(tempDir, "non-existent")},
+			expectedError: true,
+			expectedText:  "Error accessing directory",
+		},
+		{
+			name:          "Valid directory",
+			args:          []string{tempDir},
+			expectedError: false,
+			expectedText:  "Allowed directories:",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Prepare command to run the test in a subprocess
+			cmd := buildTestCommand(t, tc.args)
+
+			// Run the command and capture output
+			output, err := cmd.CombinedOutput()
+			outputStr := string(output)
+
+			// Check if error matches expectation
+			if tc.expectedError {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v, output: %s", err, outputStr)
+				}
+			}
+
+			// Check if output contains expected text
+			if !strings.Contains(outputStr, tc.expectedText) {
+				t.Errorf("Expected output to contain '%s', but got: %s", tc.expectedText, outputStr)
+			}
+		})
+	}
+}
+
+// buildTestCommand creates a command to test main function in a subprocess
+func buildTestCommand(t *testing.T, args []string) *exec.Cmd {
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatalf("Could not get test executable: %v", err)
+	}
+
+	// Prepare command with TEST_MAIN_FUNCTION=1 environment
+	cmd := exec.Command(executable, "-test.run=TestMainFunction")
+	cmd.Env = append(os.Environ(), "TEST_MAIN_FUNCTION=1")
+
+	// Add the program name as first argument (simulating os.Args[0])
+	allArgs := append([]string{"mcp-server-filesystem"}, args...)
+	cmd.Env = append(cmd.Env, fmt.Sprintf("ARGS=%s", strings.Join(allArgs, ",")))
+
+	return cmd
+}
+
+// TestMain is used to set up the test environment
+func TestMain(m *testing.M) {
+	// Check if we're in the subprocess mode
+	if os.Getenv("TEST_MAIN_FUNCTION") == "1" {
+		// Parse ARGS environment variable
+		argsStr := os.Getenv("ARGS")
+		if argsStr != "" {
+			args := strings.Split(argsStr, ",")
+			// Replace os.Args with our test args
+			os.Args = args
+			// Call main() which will exit the process
+			main()
+			return
+		}
+	}
+
+	// Normal test execution
+	os.Exit(m.Run())
 }
