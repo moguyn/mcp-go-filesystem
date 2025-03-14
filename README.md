@@ -137,12 +137,29 @@ Add this to your `claude_desktop_config.json`:
 
 ## Continuous Integration
 
-This project uses GitHub Actions for continuous integration. The CI pipeline:
+This project uses GitHub Actions for continuous integration and releases:
 
-1. Builds the project on multiple Go versions
-2. Runs all tests with race detection
-3. Performs linting with golangci-lint
-4. Builds binaries for multiple platforms (Linux, macOS, Windows)
+1. **CI Workflow**: Triggered on push to main branch and pull requests
+   - Builds the project on Go 1.24
+   - Runs all tests with race detection
+   - Performs linting with golangci-lint
+
+2. **Release Workflow**: Triggered when a tag is pushed (format: v*)
+   - Builds binaries for multiple platforms (Linux, macOS, Windows)
+   - Creates a GitHub release
+   - Uploads binaries as release assets
+
+### Creating a Release
+
+To create a new release:
+
+```bash
+# Tag the commit
+git tag v1.0.0
+
+# Push the tag to trigger the release workflow
+git push origin v1.0.0
+```
 
 ## API
 
