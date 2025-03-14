@@ -17,74 +17,13 @@ Go implementation of the Model Context Protocol (MCP) server for filesystem oper
 ### Prerequisites
 
 - Go 1.24 or later
-- Make (optional, for using the Makefile)
 - Docker (optional, for containerization)
-
-### Makefile Commands
-
-The project includes a Makefile with common commands:
-
-```bash
-# Display all available commands
-make help
-
-# Build the application
-make build
-
-# Build for multiple platforms (linux, darwin, windows)
-make build-all
-
-# Run tests
-make test
-
-# Run tests with coverage report
-make test-coverage
-
-# Format code
-make fmt
-
-# Run code vetting
-make vet
-
-# Run linting (requires golangci-lint)
-make lint
-
-# Run all code quality checks
-make check
-
-# Clean build artifacts
-make clean
-
-# Build Docker image
-make docker-build
-
-# Run in Docker container
-make docker-run DIR=/path/to/dir
-
-# Install dependencies
-make deps
-
-# Update dependencies
-make update-deps
-
-# Generate documentation
-make docs
-
-# Install the binary
-make install
-```
 
 ## Building
 
 ```bash
 # Using Go directly
 go build -o mcp-server-filesystem ./cmd/server
-
-# Using Make
-make build
-
-# Build Docker image
-make docker-build
 ```
 
 ## Usage
@@ -94,9 +33,6 @@ make docker-build
 ```bash
 # Allow access to specific directories
 ./mcp-server-filesystem /path/to/dir1 /path/to/dir2
-
-# Using Make
-make run DIR=/path/to/dir
 ```
 
 ### Docker
@@ -107,9 +43,6 @@ docker run -i --rm \
   --mount type=bind,src=/Users/username/Desktop,dst=/projects/Desktop \
   --mount type=bind,src=/path/to/other/allowed/dir,dst=/projects/other/allowed/dir,ro \
   mcp/filesystem-go /projects
-
-# Using Make
-make docker-run DIR=/path/to/dir
 ```
 
 ## Integration with Claude Desktop
@@ -133,32 +66,6 @@ Add this to your `claude_desktop_config.json`:
     }
   }
 }
-```
-
-## Continuous Integration
-
-This project uses GitHub Actions for continuous integration and releases:
-
-1. **CI Workflow**: Triggered on push to main branch and pull requests
-   - Builds the project on Go 1.24
-   - Runs all tests with race detection
-   - Performs linting with golangci-lint
-
-2. **Release Workflow**: Triggered when a tag is pushed (format: v*)
-   - Builds binaries for multiple platforms (Linux, macOS, Windows)
-   - Creates a GitHub release
-   - Uploads binaries as release assets
-
-### Creating a Release
-
-To create a new release:
-
-```bash
-# Tag the commit
-git tag v1.0.0
-
-# Push the tag to trigger the release workflow
-git push origin v1.0.0
 ```
 
 ## API
