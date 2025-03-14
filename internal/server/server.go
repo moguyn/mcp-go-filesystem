@@ -29,6 +29,9 @@ func NewServer(allowedDirectories []string) *Server {
 
 // Run starts the server and processes incoming requests
 func (s *Server) Run() error {
+	// Print a debug message to stderr
+	fmt.Fprintf(os.Stderr, "MCP Filesystem Server starting\n")
+
 	for {
 		// Read a line from stdin
 		line, err := s.reader.ReadString('\n')
@@ -39,27 +42,115 @@ func (s *Server) Run() error {
 			return fmt.Errorf("error reading from stdin: %w", err)
 		}
 
-		// Parse the request
-		var request Request
-		if err := json.Unmarshal([]byte(line), &request); err != nil {
-			if err := s.sendErrorResponse(fmt.Sprintf("error parsing request: %v", err)); err != nil {
+		// Debug print the received line
+		fmt.Fprintf(os.Stderr, "Received: %s", line)
+
+		// First, try to parse as a generic JSON-RPC message to get the ID and method
+		var genericRequest struct {
+			JSONRPC string          `json:"jsonrpc"`
+			ID      interface{}     `json:"id"`
+			Method  string          `json:"method"`
+			Params  json.RawMessage `json:"params"`
+		}
+
+		if err := json.Unmarshal([]byte(line), &genericRequest); err != nil {
+			fmt.Fprintf(os.Stderr, "Error parsing generic request: %v\n", err)
+			// We can't send a proper error response without an ID
+			// Send a response with a null ID
+			errorResp := map[string]interface{}{
+				"jsonrpc": "2.0",
+				"id":      nil,
+				"error": map[string]interface{}{
+					"code":    -32700, // Parse error
+					"message": fmt.Sprintf("Parse error: %v", err),
+				},
+			}
+			if err := s.sendJSON(errorResp); err != nil {
 				return fmt.Errorf("error sending error response: %w", err)
 			}
 			continue
 		}
 
-		// Process the request
-		switch request.Method {
+		// Process based on method
+		switch genericRequest.Method {
+		case "initialize":
+			fmt.Fprintf(os.Stderr, "Handling initialize request\n")
+
+			// Parse the initialize params
+			var params InitializeParams
+			if err := json.Unmarshal(genericRequest.Params, &params); err != nil {
+				fmt.Fprintf(os.Stderr, "Error parsing initialize params: %v\n", err)
+				errorResp := map[string]interface{}{
+					"jsonrpc": "2.0",
+					"id":      genericRequest.ID,
+					"error": map[string]interface{}{
+						"code":    -32602, // Invalid params
+						"message": fmt.Sprintf("Invalid params: %v", err),
+					},
+				}
+				if err := s.sendJSON(errorResp); err != nil {
+					return fmt.Errorf("error sending error response: %w", err)
+				}
+				continue
+			}
+
+			// Send initialize response
+			result := InitializeResult{
+				ServerInfo: Implementation{
+					Name:    "mcp-go-filesystem",
+					Version: "1.0.0",
+				},
+				ProtocolVersion: "2024-11-05",
+				Capabilities:    map[string]interface{}{},
+			}
+
+			response := Response{
+				JSONRPC: "2.0",
+				ID:      genericRequest.ID,
+				Result:  result,
+			}
+
+			if err := s.sendJSON(response); err != nil {
+				return fmt.Errorf("error sending initialize response: %w", err)
+			}
+
 		case "mcp.list_tools":
-			if err := s.handleListTools(request.ID); err != nil {
+			if err := s.handleListTools(genericRequest.ID); err != nil {
 				return fmt.Errorf("error handling list_tools: %w", err)
 			}
+
 		case "mcp.call_tool":
-			if err := s.handleCallTool(request.ID, request.Params); err != nil {
+			// Parse the call_tool params
+			var params map[string]interface{}
+			if err := json.Unmarshal(genericRequest.Params, &params); err != nil {
+				errorResp := map[string]interface{}{
+					"jsonrpc": "2.0",
+					"id":      genericRequest.ID,
+					"error": map[string]interface{}{
+						"code":    -32602, // Invalid params
+						"message": fmt.Sprintf("Invalid params: %v", err),
+					},
+				}
+				if err := s.sendJSON(errorResp); err != nil {
+					return fmt.Errorf("error sending error response: %w", err)
+				}
+				continue
+			}
+
+			if err := s.handleCallTool(genericRequest.ID, params); err != nil {
 				return fmt.Errorf("error handling call_tool: %w", err)
 			}
+
 		default:
-			if err := s.sendErrorResponse(fmt.Sprintf("unknown method: %s", request.Method)); err != nil {
+			errorResp := map[string]interface{}{
+				"jsonrpc": "2.0",
+				"id":      genericRequest.ID,
+				"error": map[string]interface{}{
+					"code":    -32601, // Method not found
+					"message": fmt.Sprintf("Method not found: %s", genericRequest.Method),
+				},
+			}
+			if err := s.sendJSON(errorResp); err != nil {
 				return fmt.Errorf("error sending error response: %w", err)
 			}
 		}
@@ -152,21 +243,36 @@ func (s *Server) ValidatePath(requestedPath string) (string, error) {
 }
 
 // sendResponse sends a JSON response to stdout
-func (s *Server) sendResponse(id string, result interface{}) error {
-	response := Response{
-		JSONRPC: "2.0",
-		ID:      id,
-		Result:  result,
+func (s *Server) sendResponse(id interface{}, result interface{}) error {
+	response := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      id,
+		"result":  result,
 	}
 	return s.sendJSON(response)
 }
 
 // sendErrorResponse sends an error response
 func (s *Server) sendErrorResponse(message string) error {
-	errorResponse := ErrorResponse{
-		JSONRPC: "2.0",
-		Error: Error{
-			Message: message,
+	errorResponse := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      nil,
+		"error": map[string]interface{}{
+			"code":    -32000,
+			"message": message,
+		},
+	}
+	return s.sendJSON(errorResponse)
+}
+
+// sendErrorResponseWithID sends an error response with the specified request ID
+func (s *Server) sendErrorResponseWithID(id interface{}, message string) error {
+	errorResponse := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      id,
+		"error": map[string]interface{}{
+			"code":    -32000,
+			"message": message,
 		},
 	}
 	return s.sendJSON(errorResponse)
@@ -174,6 +280,9 @@ func (s *Server) sendErrorResponse(message string) error {
 
 // sendJSON marshals and sends a JSON object to stdout
 func (s *Server) sendJSON(v interface{}) error {
+	// Debug print to stderr
+	fmt.Fprintf(os.Stderr, "Sending response: %+v\n", v)
+
 	data, err := json.Marshal(v)
 	if err != nil {
 		return fmt.Errorf("error marshaling JSON: %w", err)

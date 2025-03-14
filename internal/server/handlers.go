@@ -13,7 +13,7 @@ import (
 )
 
 // handleListTools handles the mcp.list_tools request
-func (s *Server) handleListTools(id string) error {
+func (s *Server) handleListTools(id interface{}) error {
 	tools := []Tool{
 		{
 			Name: "read_file",
@@ -243,10 +243,10 @@ func (s *Server) handleListTools(id string) error {
 }
 
 // handleCallTool handles the mcp.call_tool request
-func (s *Server) handleCallTool(id string, params map[string]interface{}) error {
+func (s *Server) handleCallTool(id interface{}, params map[string]interface{}) error {
 	toolName, ok := params["name"].(string)
 	if !ok {
-		return s.sendErrorResponse("missing or invalid tool name")
+		return s.sendErrorResponseWithID(id, "missing or invalid tool name")
 	}
 
 	args, ok := params["arguments"].(map[string]interface{})
@@ -281,7 +281,7 @@ func (s *Server) handleCallTool(id string, params map[string]interface{}) error 
 	case "list_allowed_directories":
 		response, err = s.handleListAllowedDirectories(args)
 	default:
-		return s.sendErrorResponse(fmt.Sprintf("unknown tool: %s", toolName))
+		return s.sendErrorResponseWithID(id, fmt.Sprintf("unknown tool: %s", toolName))
 	}
 
 	if err != nil {
