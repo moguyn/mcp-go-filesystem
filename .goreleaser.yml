@@ -1,50 +1,41 @@
 version: 2
-
-before:
-  hooks:
-    - go mod tidy
-
+project_name: go-filesystem
 builds:
-  - id: mcp-go-filesystem
-    main: ./
-    binary: mcp-go-filesystem
-    env:
-      - CGO_ENABLED=0
+  - binary: mcp-go-filesystem
+    id: mcp-go-filesystem-build
+    main: .
     goos:
       - linux
-      - windows
       - darwin
+      - windows
     goarch:
       - amd64
+      - arm64
     ldflags:
-      - -s -w
-      - -X main.version={{.Version}}
-      - -X main.commit={{.Commit}}
-      - -X main.date={{.Date}}
+      - -s
+      - -w
+      - -X github.com/moguyn/mcp-go-filesystem.Version={{.Version}}
+      - -X github.com/moguyn/mcp-go-filesystem.Commit={{.Commit}}
+      - -X main.builtBy=goreleaser
+    env:
+      - CGO_ENABLED=0
 
-archives:
-  - format: tar.gz
-    name_template: >-
-      {{ .ProjectName }}_
-      {{- .Version }}_
-      {{- .Os }}_
-      {{- .Arch }}
-    format_overrides:
-      - goos: windows
-        format: zip
-    files:
-      - README.md
-      - LICENSE*
+snapshot:
+  version_template: "{{ .Version }}-SNAPSHOT-{{ .ShortCommit }}"
 
-checksum:
-  name_template: 'checksums.txt'
-
-changelog:
-  sort: asc
-  filters:
-    exclude:
-      - '^docs:'
-      - '^test:'
-      - '^ci:'
-      - Merge pull request
-      - Merge branch 
+dockers:
+  - image_templates:
+      - "moguyn/mcp-go-filesystem:{{ .Version }}"
+      - "moguyn/mcp-go-filesystem:latest"
+    dockerfile: Dockerfile
+    build_flag_templates:
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.name={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source={{.GitURL}}"
+    goos: linux
+    goarch: amd64
+    ids:
+      - mcp-go-filesystem-build
