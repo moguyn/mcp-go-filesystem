@@ -38,7 +38,7 @@ func (s *DirectoryService) CreateDirectory(path string) error {
 	}
 
 	// Create the directory
-	if err := os.MkdirAll(validPath, 0755); err != nil {
+	if err := os.MkdirAll(validPath, 0750); err != nil {
 		return errors.NewFileSystemError("create_directory", path, err)
 	}
 

@@ -94,7 +94,7 @@ func (s *SearchService) searchInDirectory(dirPath, query string, recursive bool,
 // searchInFile searches for a query in a file
 func (s *SearchService) searchInFile(filePath, query string, results *[]SearchResult) error {
 	// Open the file
-	file, err := os.Open(filePath)
+	file, err := os.Open(filePath) // #nosec G304 - path is validated by ValidatePath in the calling function
 	if err != nil {
 		return err
 	}

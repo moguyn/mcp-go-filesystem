@@ -39,7 +39,7 @@ func (s *FileService) ReadFile(path string) (string, error) {
 	}
 
 	// Read file
-	content, err := os.ReadFile(validPath)
+	content, err := os.ReadFile(validPath) // #nosec G304 - path is validated by ValidatePath
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", errors.NewFileSystemError("read_file", path, errors.ErrFileNotFound)
@@ -82,7 +82,7 @@ func (s *FileService) WriteFile(path, content string, append bool) error {
 
 	// Create parent directories if they don't exist
 	dir := filepath.Dir(validPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return errors.NewFileSystemError("write_file", path, err)
 	}
 
@@ -94,7 +94,7 @@ func (s *FileService) WriteFile(path, content string, append bool) error {
 		flag |= os.O_TRUNC
 	}
 
-	file, err := os.OpenFile(validPath, flag, 0644)
+	file, err := os.OpenFile(validPath, flag, 0600) // #nosec G304 - path is validated by ValidatePath
 	if err != nil {
 		return errors.NewFileSystemError("write_file", path, err)
 	}
@@ -117,7 +117,7 @@ func (s *FileService) EditFile(path, content string, startLine, endLine int) err
 	}
 
 	// Read the entire file
-	fileBytes, err := os.ReadFile(validPath)
+	fileBytes, err := os.ReadFile(validPath) // #nosec G304 - path is validated by ValidatePath
 	if err != nil {
 		if os.IsNotExist(err) {
 			return errors.NewFileSystemError("edit_file", path, errors.ErrFileNotFound)
@@ -204,7 +204,7 @@ func (s *FileService) MoveFile(sourcePath, destinationPath string) error {
 
 	// Create parent directories if they don't exist
 	destDir := filepath.Dir(validDestPath)
-	if err := os.MkdirAll(destDir, 0755); err != nil {
+	if err := os.MkdirAll(destDir, 0750); err != nil {
 		return errors.NewFileSystemError("move_file", destinationPath, err)
 	}
 
@@ -244,19 +244,19 @@ func (s *FileService) CopyFile(sourcePath, destinationPath string) error {
 
 	// Create parent directories if they don't exist
 	destDir := filepath.Dir(validDestPath)
-	if err := os.MkdirAll(destDir, 0755); err != nil {
+	if err := os.MkdirAll(destDir, 0750); err != nil {
 		return errors.NewFileSystemError("copy_file", destinationPath, err)
 	}
 
 	// Open source file
-	source, err := os.Open(validSourcePath)
+	source, err := os.Open(validSourcePath) // #nosec G304 - path is validated by ValidatePath
 	if err != nil {
 		return errors.NewFileSystemError("copy_file", sourcePath, err)
 	}
 	defer source.Close()
 
 	// Create destination file
-	destination, err := os.Create(validDestPath)
+	destination, err := os.Create(validDestPath) // #nosec G304 - path is validated by ValidatePath
 	if err != nil {
 		return errors.NewFileSystemError("copy_file", destinationPath, err)
 	}
