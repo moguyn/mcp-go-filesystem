@@ -28,18 +28,9 @@ help: ## Display this help
 build: ## Build the application
 	go build $(LDFLAGS) -o $(BINARY_NAME) $(MAIN_PACKAGE)
 
-# Build for multiple platforms
-build-all: ## Build for multiple platforms (linux, darwin, windows)
-	mkdir -p $(BUILD_DIR)
-	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 $(MAIN_PACKAGE)
-	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-amd64 $(MAIN_PACKAGE)
-	GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-arm64 $(MAIN_PACKAGE)
-	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-windows-amd64.exe $(MAIN_PACKAGE)
-
 # Clean build artifacts
 clean: ## Remove build artifacts
 	rm -f $(BINARY_NAME)
-	rm -rf $(BUILD_DIR)
 
 # Run the application
 run: build ## Run the application (specify DIR=/path/to/dir to set allowed directory)
@@ -60,21 +51,17 @@ test-coverage: ## Run tests with coverage
 fmt: ## Format code
 	go fmt ./...
 
-# Vet code
-vet: ## Vet code
-	go vet ./...
-
 # Lint code
 lint: ## Lint code (requires golangci-lint)
 	@which golangci-lint > /dev/null || (echo "golangci-lint is required. Install with: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest" && exit 1)
 	golangci-lint run ./...
 
-# Check code (format, vet, lint)
-check: fmt vet lint ## Run all code quality checks
+# Check code (format, lint)
+check: fmt lint ## Run all code quality checks
 
 # Install dependencies
 deps: ## Install dependencies
-	go mod download
+	go mod vendor
 	go mod tidy
 
 # Build Docker image
