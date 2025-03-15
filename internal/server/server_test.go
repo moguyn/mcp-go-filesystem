@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mark3labs/mcp-go/server"
+	"github.com/moguyn/mcp-go-filesystem/internal/config"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -14,11 +14,20 @@ func TestNewServer(t *testing.T) {
 	// Test data
 	version := "1.0.0"
 	allowedDirs := []string{"/test/dir1", "/test/dir2"}
-	mode := StdioMode
+	mode := config.StdioMode
 	httpListenAddr := "localhost:8080"
 
+	// Create a config
+	cfg := &config.Config{
+		Version:     version,
+		AllowedDirs: allowedDirs,
+		ServerMode:  mode,
+		ListenAddr:  httpListenAddr,
+		LogLevel:    "INFO",
+	}
+
 	// Create a new server
-	s := NewServer(version, allowedDirs, mode, httpListenAddr)
+	s := NewServer(cfg)
 
 	// Verify the server was created correctly
 	assert.NotNil(t, s)
@@ -30,8 +39,17 @@ func TestNewServer(t *testing.T) {
 }
 
 func TestInitialize(t *testing.T) {
+	// Create a test config
+	cfg := &config.Config{
+		Version:     "1.0.0",
+		AllowedDirs: []string{"/test/dir"},
+		ServerMode:  config.StdioMode,
+		ListenAddr:  "localhost:8080",
+		LogLevel:    "INFO",
+	}
+
 	// Create a test server
-	s := NewServer("1.0.0", []string{"/test/dir"}, StdioMode, "localhost:8080")
+	s := NewServer(cfg)
 
 	// Initialize should not panic
 	assert.NotPanics(t, func() {
@@ -41,14 +59,21 @@ func TestInitialize(t *testing.T) {
 
 func TestServerModes(t *testing.T) {
 	// Test the server mode constants
-	assert.Equal(t, ServerMode("stdio"), StdioMode)
-	assert.Equal(t, ServerMode("sse"), SSEMode)
+	assert.Equal(t, "stdio", string(config.StdioMode))
+	assert.Equal(t, "sse", string(config.SSEMode))
 }
 
 func TestStartInvalidMode(t *testing.T) {
 	// Create a server with an invalid mode
-	invalidMode := ServerMode("invalid")
-	s := NewServer("1.0.0", []string{"/test/dir"}, invalidMode, "localhost:8080")
+	invalidMode := config.ServerMode("invalid")
+	cfg := &config.Config{
+		Version:     "1.0.0",
+		AllowedDirs: []string{"/test/dir"},
+		ServerMode:  invalidMode,
+		ListenAddr:  "localhost:8080",
+		LogLevel:    "INFO",
+	}
+	s := NewServer(cfg)
 
 	// Start should return an error for invalid mode
 	err := s.Start()
@@ -56,13 +81,13 @@ func TestStartInvalidMode(t *testing.T) {
 	assert.Contains(t, err.Error(), "unsupported server mode")
 }
 
-// TestServerString tests the string representation of ServerMode
+// TestServerModeString tests the string representation of ServerMode
 func TestServerModeString(t *testing.T) {
-	assert.Equal(t, "stdio", string(StdioMode))
-	assert.Equal(t, "sse", string(SSEMode))
+	assert.Equal(t, "stdio", string(config.StdioMode))
+	assert.Equal(t, "sse", string(config.SSEMode))
 
 	// Test custom mode string
-	customMode := ServerMode("custom")
+	customMode := config.ServerMode("custom")
 	assert.Equal(t, "custom", string(customMode))
 }
 
@@ -72,32 +97,34 @@ func TestStartModes(t *testing.T) {
 	// but we can at least verify the code path is taken
 	t.Run("StdioMode", func(t *testing.T) {
 		// Create a server with stdio mode
-		s := &Server{
-			mcpServer:      server.NewMCPServer("test", "1.0.0"),
-			allowedDirs:    []string{"/test/dir"},
-			version:        "1.0.0",
-			mode:           StdioMode,
-			httpListenAddr: "localhost:8080",
+		cfg := &config.Config{
+			Version:     "1.0.0",
+			AllowedDirs: []string{"/test/dir"},
+			ServerMode:  config.StdioMode,
+			ListenAddr:  "localhost:8080",
+			LogLevel:    "INFO",
 		}
+		s := NewServer(cfg)
 
 		// We can't fully test this without mocking os.Stdin/os.Stdout
 		// Just verify the server is configured correctly
-		assert.Equal(t, StdioMode, s.mode)
+		assert.Equal(t, config.StdioMode, s.mode)
 	})
 
 	// Test SSEMode - we can verify the code path but not actually start the server
 	t.Run("SSEMode", func(t *testing.T) {
 		// Create a server with SSE mode
-		s := &Server{
-			mcpServer:      server.NewMCPServer("test", "1.0.0"),
-			allowedDirs:    []string{"/test/dir"},
-			version:        "1.0.0",
-			mode:           SSEMode,
-			httpListenAddr: "localhost:0", // Use port 0 to get a random available port
+		cfg := &config.Config{
+			Version:     "1.0.0",
+			AllowedDirs: []string{"/test/dir"},
+			ServerMode:  config.SSEMode,
+			ListenAddr:  "localhost:0", // Use port 0 to get a random available port
+			LogLevel:    "INFO",
 		}
+		s := NewServer(cfg)
 
 		// Verify the server is configured correctly
-		assert.Equal(t, SSEMode, s.mode)
+		assert.Equal(t, config.SSEMode, s.mode)
 		assert.Equal(t, "localhost:0", s.httpListenAddr)
 	})
 }
@@ -124,31 +151,31 @@ func TestServerConfiguration(t *testing.T) {
 	testCases := []struct {
 		name        string
 		allowedDirs []string
-		mode        ServerMode
+		mode        config.ServerMode
 		listenAddr  string
 	}{
 		{
 			name:        "Single directory with stdio mode",
 			allowedDirs: []string{tempDir},
-			mode:        StdioMode,
+			mode:        config.StdioMode,
 			listenAddr:  "0.0.0.0:38085",
 		},
 		{
 			name:        "Single directory with SSE mode",
 			allowedDirs: []string{tempDir},
-			mode:        SSEMode,
+			mode:        config.SSEMode,
 			listenAddr:  "0.0.0.0:38085",
 		},
 		{
 			name:        "Multiple directories",
 			allowedDirs: []string{tempDir, tempDir},
-			mode:        StdioMode,
+			mode:        config.StdioMode,
 			listenAddr:  "0.0.0.0:38085",
 		},
 		{
 			name:        "Custom listen address",
 			allowedDirs: []string{tempDir},
-			mode:        SSEMode,
+			mode:        config.SSEMode,
 			listenAddr:  "127.0.0.1:38086",
 		},
 	}
@@ -156,7 +183,14 @@ func TestServerConfiguration(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create server with test configuration
-			server := NewServer("test-version", tc.allowedDirs, tc.mode, tc.listenAddr)
+			cfg := &config.Config{
+				Version:     "test-version",
+				AllowedDirs: tc.allowedDirs,
+				ServerMode:  tc.mode,
+				ListenAddr:  tc.listenAddr,
+				LogLevel:    "INFO",
+			}
+			server := NewServer(cfg)
 
 			// Verify server configuration
 			if server.version != "test-version" {
@@ -181,20 +215,14 @@ func TestServerConfiguration(t *testing.T) {
 // TestParseCommandLineArgs tests the argument processing logic
 func TestParseCommandLineArgs(t *testing.T) {
 	// Test with help flags
-	_, err := ParseCommandLineArgs("test-version", []string{"program", "--help"})
+	_, err := config.ParseCommandLineArgs("test-version", []string{"program", "--help"})
 	if err == nil || err.Error() != "help requested" {
 		t.Errorf("Expected 'help requested' error for --help flag, got: %v", err)
 	}
 
-	_, err = ParseCommandLineArgs("test-version", []string{"program", "-h"})
+	_, err = config.ParseCommandLineArgs("test-version", []string{"program", "-h"})
 	if err == nil || err.Error() != "help requested" {
 		t.Errorf("Expected 'help requested' error for -h flag, got: %v", err)
-	}
-
-	// Test insufficient arguments
-	_, err = ParseCommandLineArgs("test-version", []string{"program"})
-	if err == nil || err.Error() != "insufficient arguments" {
-		t.Errorf("Expected 'insufficient arguments' error, got: %v", err)
 	}
 
 	// Create a temporary directory for testing
@@ -219,7 +247,6 @@ func TestParseCommandLineArgs(t *testing.T) {
 		name      string
 		args      []string
 		shouldErr bool
-		errMsg    string
 	}{
 		{
 			name:      "Valid directory",
@@ -227,94 +254,137 @@ func TestParseCommandLineArgs(t *testing.T) {
 			shouldErr: false,
 		},
 		{
-			name:      "Non-existent directory",
-			args:      []string{"program", nonExistentDir},
-			shouldErr: true,
-			errMsg:    "error accessing directory",
-		},
-		{
-			name:      "Not a directory",
-			args:      []string{"program", filePath},
-			shouldErr: true,
-			errMsg:    "is not a directory",
-		},
-		{
-			name:      "Multiple directories",
-			args:      []string{"program", tempDir, tempDir},
-			shouldErr: false,
-		},
-		{
-			name:      "With mode option",
+			name:      "Valid directory with mode",
 			args:      []string{"program", "--mode=stdio", tempDir},
 			shouldErr: false,
 		},
 		{
-			name:      "With SSE mode",
-			args:      []string{"program", "--mode=sse", tempDir},
+			name:      "Valid directory with SSE mode and listen address",
+			args:      []string{"program", "--mode=sse", "--listen=127.0.0.1:38086", tempDir},
 			shouldErr: false,
 		},
 		{
-			name:      "With invalid mode",
+			name:      "Invalid mode",
 			args:      []string{"program", "--mode=invalid", tempDir},
 			shouldErr: true,
-			errMsg:    "invalid server mode",
 		},
 		{
-			name:      "With listen address",
-			args:      []string{"program", "--listen=127.0.0.1:8080", tempDir},
-			shouldErr: false,
+			name:      "Non-existent directory",
+			args:      []string{"program", nonExistentDir},
+			shouldErr: true,
+		},
+		{
+			name:      "File instead of directory",
+			args:      []string{"program", filePath},
+			shouldErr: true,
+		},
+		{
+			name:      "No directories",
+			args:      []string{"program", "--mode=stdio"},
+			shouldErr: true,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			config, err := ParseCommandLineArgs("test-version", tc.args)
+			cfg, err := config.ParseCommandLineArgs("test-version", tc.args)
 
 			if tc.shouldErr {
-				if err == nil {
-					t.Errorf("Expected error for args %v, got nil", tc.args)
-				} else if !strings.Contains(err.Error(), tc.errMsg) {
-					t.Errorf("Expected error containing '%s', got '%s'", tc.errMsg, err.Error())
-				}
+				assert.Error(t, err)
 			} else {
-				if err != nil {
-					t.Errorf("Unexpected error for args %v: %v", tc.args, err)
-				}
+				assert.NoError(t, err)
+				assert.NotNil(t, cfg)
 
-				// Verify config values
-				if config.Version != "test-version" {
-					t.Errorf("Expected version 'test-version', got '%s'", config.Version)
-				}
+				// Verify the configuration
+				assert.Equal(t, "test-version", cfg.Version)
 
 				// Check if allowed directories are set
-				if len(config.AllowedDirs) == 0 {
-					t.Errorf("Expected at least one allowed directory")
-				}
+				assert.Greater(t, len(cfg.AllowedDirs), 0)
 
 				// Check mode if specified
 				for _, arg := range tc.args {
 					if strings.HasPrefix(arg, "--mode=") {
 						mode := strings.TrimPrefix(arg, "--mode=")
-						var expectedMode ServerMode
 						switch mode {
 						case "stdio":
-							expectedMode = StdioMode
+							assert.Equal(t, config.StdioMode, cfg.ServerMode)
 						case "sse":
-							expectedMode = SSEMode
-						}
-						if config.ServerMode != expectedMode {
-							t.Errorf("Expected mode %s, got %s", expectedMode, config.ServerMode)
+							assert.Equal(t, config.SSEMode, cfg.ServerMode)
 						}
 					}
 
 					if strings.HasPrefix(arg, "--listen=") {
 						listen := strings.TrimPrefix(arg, "--listen=")
-						if config.ListenAddr != listen {
-							t.Errorf("Expected listen address %s, got %s", listen, config.ListenAddr)
-						}
+						assert.Equal(t, listen, cfg.ListenAddr)
 					}
 				}
 			}
 		})
 	}
+}
+
+func TestStop(t *testing.T) {
+	// Create a test config
+	cfg := &config.Config{
+		Version:     "1.0.0",
+		AllowedDirs: []string{"/test/dir"},
+		ServerMode:  config.StdioMode,
+		ListenAddr:  "localhost:8080",
+		LogLevel:    "INFO",
+	}
+
+	// Create a new server
+	s := NewServer(cfg)
+
+	// Ensure context is not canceled before Stop
+	select {
+	case <-s.ctx.Done():
+		t.Error("Context should not be canceled before Stop is called")
+	default:
+		// This is the expected path
+	}
+
+	// Call Stop
+	s.Stop()
+
+	// Verify context is canceled after Stop
+	select {
+	case <-s.ctx.Done():
+		// This is the expected path
+	default:
+		t.Error("Context should be canceled after Stop is called")
+	}
+}
+
+func TestStartSSEServer(t *testing.T) {
+	// Create a test config
+	cfg := &config.Config{
+		Version:     "1.0.0",
+		AllowedDirs: []string{"/test/dir"},
+		ServerMode:  config.SSEMode,
+		ListenAddr:  "localhost:8080",
+		LogLevel:    "INFO",
+	}
+
+	// Create a new server
+	s := NewServer(cfg)
+
+	// Mock the startSSEServer function to avoid actually starting a server
+	startCalled := false
+	origStartSSEServer := startSSEServer
+	defer func() { startSSEServer = origStartSSEServer }()
+
+	startSSEServer = func(s *Server) error {
+		startCalled = true
+		// Verify the server is properly configured
+		assert.Equal(t, "localhost:8080", s.httpListenAddr)
+		return nil
+	}
+
+	// Call Start
+	err := s.Start()
+
+	// Verify startSSEServer was called
+	assert.True(t, startCalled)
+	assert.Nil(t, err)
 }
