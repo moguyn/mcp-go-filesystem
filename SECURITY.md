@@ -2,7 +2,7 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in MCP Filesystem Server, please report it by sending an email to security@example.com. Please do not disclose security vulnerabilities publicly until they have been handled by the maintainers.
+If you discover a security vulnerability in MCP Filesystem Server, please report it by sending an email to security@mcp-project.org. Please do not disclose security vulnerabilities publicly until they have been handled by the maintainers.
 
 ## Scope
 

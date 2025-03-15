@@ -2,23 +2,43 @@
 
 A secure filesystem server for the Model Control Protocol (MCP) that provides controlled access to the local filesystem.
 
+## Overview
+
+MCP Filesystem Server enables secure, controlled access to specified directories on the local filesystem. It's designed to be used as part of the Model Control Protocol ecosystem, providing file system operations for AI models and other applications.
+
 ## Features
 
-- Secure access to specified directories only
-- Support for both stdio and SSE (Server-Sent Events) modes
-- File operations: read, write, edit, move
-- Directory operations: create, list, tree view
-- Search operations: find files by pattern
-- Information operations: get file metadata
+- **Security**: Access limited to explicitly allowed directories
+- **Multiple Modes**: Support for both stdio and SSE (Server-Sent Events) modes
+- **File Operations**: Read, write, edit, move, and delete files
+- **Directory Operations**: Create, list, and navigate directory structures
+- **Search Capabilities**: Find files by pattern or content
+- **Metadata Access**: Get detailed file and directory information
 
 ## Installation
 
+### From Source
+
 ```bash
-# Build from source
+# Clone the repository
+git clone https://github.com/your-org/mcp-server-filesystem.git
+cd mcp-server-filesystem
+
+# Build
 make build
 
 # Install binary
 make install
+```
+
+### Using Docker
+
+```bash
+# Build Docker image
+make docker-build
+
+# Run with Docker
+make docker-run DIR=/path/to/dir
 ```
 
 ## Usage
@@ -52,8 +72,14 @@ make deps
 # Run tests
 make test
 
+# Run tests with coverage
+make test-coverage
+
 # Run linting
 make lint
+
+# Format code
+make fmt
 
 # Run all checks
 make check
@@ -61,14 +87,18 @@ make check
 
 ## Security
 
-The server only allows operations within the directories specified on the command line. Any attempt to access files outside these directories will be rejected.
+The server implements strict security measures:
 
-See [SECURITY.md](SECURITY.md) for our security policy and reporting vulnerabilities.
+- Only allows operations within explicitly specified directories
+- Rejects any attempt to access files outside allowed directories
+- Validates all paths to prevent directory traversal attacks
+
+See [SECURITY.md](SECURITY.md) for our security policy and vulnerability reporting process.
 
 ## Contributing
 
-Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to this project.
 
 ## License
 
-[MIT License](LICENSE) 
+This project is licensed under the [MIT License](LICENSE). 
