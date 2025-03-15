@@ -1,15 +1,49 @@
 # MCP Filesystem Server
 
+[![Go CI](https://github.com/moguyn/mcp-go-filesystem/actions/workflows/ci.yml/badge.svg)](https://github.com/moguyn/mcp-go-filesystem/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/moguyn/mcp-go-filesystem/branch/main/graph/badge.svg)](https://codecov.io/gh/moguyn/mcp-go-filesystem)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A secure filesystem server for the Model Control Protocol (MCP) that provides controlled access to the local filesystem.
+
+## Overview
+
+MCP Filesystem Server enables secure, controlled access to specified directories on the local filesystem. It's designed to be used as part of the Model Control Protocol ecosystem, providing file system operations for AI models and other applications.
 
 ## Features
 
-- Secure access to specified directories only
-- Support for both stdio and SSE (Server-Sent Events) modes
-- File operations: read, write, edit, move
-- Directory operations: create, list, tree view
-- Search operations: find files by pattern
-- Information operations: get file metadata
+- **Security**: Access limited to explicitly allowed directories
+- **Multiple Modes**: Support for both stdio and SSE (Server-Sent Events) modes
+- **File Operations**: Read, write, edit, move, and delete files
+- **Directory Operations**: Create, list, and navigate directory structures
+- **Search Capabilities**: Find files by pattern or content
+- **Metadata Access**: Get detailed file and directory information
+
+## Installation
+
+### From Source
+
+```bash
+# Clone the repository
+git clone https://github.com/your-org/mcp-server-filesystem.git
+cd mcp-server-filesystem
+
+# Build
+make build
+
+# Install binary
+make install
+```
+
+### Using Docker
+
+```bash
+# Build Docker image
+make docker-build
+
+# Run with Docker
+make docker-run DIR=/path/to/dir
+```
 
 ## Usage
 
@@ -23,31 +57,52 @@ Options:
   --mode=<mode>        Server mode: 'stdio' (default) or 'sse'
   --listen=<address>   HTTP listen address for SSE mode (default: 127.0.0.1:8080)
 
-The server will only allow operations within the specified directories.
-
 Examples:
   mcp-server-filesystem /path/to/dir1 /path/to/dir2
   mcp-server-filesystem --mode=sse --listen=0.0.0.0:8080 /path/to/dir
 ```
 
-### Stdio Mode
+### Server Modes
 
-In stdio mode, the server communicates through standard input and output, making it suitable for integration with other applications that can manage I/O streams.
+- **Stdio Mode**: Communicates through standard input/output for integration with applications that manage I/O streams.
+- **SSE Mode**: Runs as an HTTP server with Server-Sent Events support for real-time communication over HTTP.
 
-### SSE Mode
+## Development
 
-In SSE mode, the server runs as an HTTP server with Server-Sent Events support, allowing real-time communication over HTTP. This is useful for web-based clients or when you need to access the server over a network.
+```bash
+# Install dependencies
+make deps
+
+# Run tests
+make test
+
+# Run tests with coverage
+make test-coverage
+
+# Run linting
+make lint
+
+# Format code
+make fmt
+
+# Run all checks
+make check
+```
 
 ## Security
 
-The server only allows operations within the directories specified on the command line. Any attempt to access files outside these directories will be rejected.
+The server implements strict security measures:
 
-## Building
+- Only allows operations within explicitly specified directories
+- Rejects any attempt to access files outside allowed directories
+- Validates all paths to prevent directory traversal attacks
 
-```bash
-go build -o mcp-server-filesystem ./cmd/server
-```
+See [SECURITY.md](SECURITY.md) for our security policy and vulnerability reporting process.
+
+## Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to this project.
 
 ## License
 
-[MIT License](LICENSE) 
+This project is licensed under the [MIT License](LICENSE). 
