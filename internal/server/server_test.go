@@ -1,537 +1,320 @@
 package server
 
 import (
-	"bufio"
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
+
+	"github.com/mark3labs/mcp-go/server"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestExpandHome(t *testing.T) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		t.Fatalf("Failed to get home directory: %v", err)
-	}
+func TestNewServer(t *testing.T) {
+	// Test data
+	version := "1.0.0"
+	allowedDirs := []string{"/test/dir1", "/test/dir2"}
+	mode := StdioMode
+	httpListenAddr := "localhost:8080"
 
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "No tilde",
-			input:    "/absolute/path",
-			expected: "/absolute/path",
-		},
-		{
-			name:     "Tilde only",
-			input:    "~",
-			expected: homeDir,
-		},
-		{
-			name:     "Tilde with path",
-			input:    "~/documents",
-			expected: filepath.Join(homeDir, "documents"),
-		},
-		{
-			name:     "Relative path",
-			input:    "relative/path",
-			expected: "relative/path",
-		},
-	}
+	// Create a new server
+	s := NewServer(version, allowedDirs, mode, httpListenAddr)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := ExpandHome(tt.input)
-			if result != tt.expected {
-				t.Errorf("ExpandHome() = %q, want %q", result, tt.expected)
-			}
-		})
-	}
+	// Verify the server was created correctly
+	assert.NotNil(t, s)
+	assert.NotNil(t, s.mcpServer)
+	assert.Equal(t, version, s.version)
+	assert.Equal(t, allowedDirs, s.allowedDirs)
+	assert.Equal(t, mode, s.mode)
+	assert.Equal(t, httpListenAddr, s.httpListenAddr)
 }
 
-// Mock implementation of ValidatePath for testing
-func mockValidatePath(s *Server, path string) (string, error) {
-	// Skip the symlink checks for testing purposes
-	for _, dir := range s.allowedDirectories {
-		if path == dir || strings.HasPrefix(path, dir+string(os.PathSeparator)) {
-			return path, nil
+func TestInitialize(t *testing.T) {
+	// Create a test server
+	s := NewServer("1.0.0", []string{"/test/dir"}, StdioMode, "localhost:8080")
+
+	// Initialize should not panic
+	assert.NotPanics(t, func() {
+		s.initialize()
+	})
+}
+
+func TestServerModes(t *testing.T) {
+	// Test the server mode constants
+	assert.Equal(t, ServerMode("stdio"), StdioMode)
+	assert.Equal(t, ServerMode("sse"), SSEMode)
+}
+
+func TestStartInvalidMode(t *testing.T) {
+	// Create a server with an invalid mode
+	invalidMode := ServerMode("invalid")
+	s := NewServer("1.0.0", []string{"/test/dir"}, invalidMode, "localhost:8080")
+
+	// Start should return an error for invalid mode
+	err := s.Start()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unsupported server mode")
+}
+
+// TestServerString tests the string representation of ServerMode
+func TestServerModeString(t *testing.T) {
+	assert.Equal(t, "stdio", string(StdioMode))
+	assert.Equal(t, "sse", string(SSEMode))
+
+	// Test custom mode string
+	customMode := ServerMode("custom")
+	assert.Equal(t, "custom", string(customMode))
+}
+
+// TestStartModes tests the different server modes without actually starting servers
+func TestStartModes(t *testing.T) {
+	// Test StdioMode - we can't actually test this fully without mocking os.Stdin/os.Stdout
+	// but we can at least verify the code path is taken
+	t.Run("StdioMode", func(t *testing.T) {
+		// Create a server with stdio mode
+		s := &Server{
+			mcpServer:      server.NewMCPServer("test", "1.0.0"),
+			allowedDirs:    []string{"/test/dir"},
+			version:        "1.0.0",
+			mode:           StdioMode,
+			httpListenAddr: "localhost:8080",
 		}
-	}
-	return "", fmt.Errorf("access denied - path outside allowed directories: %s", path)
+
+		// We can't fully test this without mocking os.Stdin/os.Stdout
+		// Just verify the server is configured correctly
+		assert.Equal(t, StdioMode, s.mode)
+	})
+
+	// Test SSEMode - we can verify the code path but not actually start the server
+	t.Run("SSEMode", func(t *testing.T) {
+		// Create a server with SSE mode
+		s := &Server{
+			mcpServer:      server.NewMCPServer("test", "1.0.0"),
+			allowedDirs:    []string{"/test/dir"},
+			version:        "1.0.0",
+			mode:           SSEMode,
+			httpListenAddr: "localhost:0", // Use port 0 to get a random available port
+		}
+
+		// Verify the server is configured correctly
+		assert.Equal(t, SSEMode, s.mode)
+		assert.Equal(t, "localhost:0", s.httpListenAddr)
+	})
 }
 
-func TestValidatePath(t *testing.T) {
+// TestServerConfiguration tests the server configuration
+func TestServerConfiguration(t *testing.T) {
 	// Create a temporary directory for testing
-	tempDir, err := os.MkdirTemp("", "mcp-server-test")
+	tempDir, err := os.MkdirTemp("", "mcp-server-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}
 	defer os.RemoveAll(tempDir)
 
-	// Create a subdirectory
-	subDir := filepath.Join(tempDir, "subdir")
-	if err := os.Mkdir(subDir, 0755); err != nil {
-		t.Fatalf("Failed to create subdirectory: %v", err)
+	// Save original startSSEServer function and restore it after tests
+	originalStartSSE := startSSEServer
+	defer func() { startSSEServer = originalStartSSE }()
+
+	// Replace with mock function
+	startSSEServer = func(s *Server) error {
+		return nil
 	}
 
-	// Create a test file
-	testFile := filepath.Join(subDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
-	}
-
-	// Create a server with the temp directory as allowed
-	s := NewServer([]string{tempDir})
-
-	tests := []struct {
+	// Test cases
+	testCases := []struct {
 		name        string
-		input       string
-		shouldError bool
+		allowedDirs []string
+		mode        ServerMode
+		listenAddr  string
 	}{
 		{
-			name:        "Allowed directory",
-			input:       tempDir,
-			shouldError: false,
+			name:        "Single directory with stdio mode",
+			allowedDirs: []string{tempDir},
+			mode:        StdioMode,
+			listenAddr:  "0.0.0.0:38085",
 		},
 		{
-			name:        "Subdirectory of allowed directory",
-			input:       subDir,
-			shouldError: false,
+			name:        "Single directory with SSE mode",
+			allowedDirs: []string{tempDir},
+			mode:        SSEMode,
+			listenAddr:  "0.0.0.0:38085",
 		},
 		{
-			name:        "File in allowed directory",
-			input:       testFile,
-			shouldError: false,
+			name:        "Multiple directories",
+			allowedDirs: []string{tempDir, tempDir},
+			mode:        StdioMode,
+			listenAddr:  "0.0.0.0:38085",
 		},
 		{
-			name:        "Parent of allowed directory",
-			input:       filepath.Dir(tempDir),
-			shouldError: true,
-		},
-		{
-			name:        "Unrelated directory",
-			input:       "/tmp",
-			shouldError: true,
+			name:        "Custom listen address",
+			allowedDirs: []string{tempDir},
+			mode:        SSEMode,
+			listenAddr:  "127.0.0.1:38086",
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Use the mock implementation instead of the real one
-			_, err := mockValidatePath(s, tt.input)
-			if (err != nil) != tt.shouldError {
-				if tt.shouldError {
-					t.Errorf("ValidatePath() did not return expected error for %q", tt.input)
-				} else {
-					t.Errorf("ValidatePath() returned unexpected error for %q: %v", tt.input, err)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create server with test configuration
+			server := NewServer("test-version", tc.allowedDirs, tc.mode, tc.listenAddr)
+
+			// Verify server configuration
+			if server.version != "test-version" {
+				t.Errorf("Expected version 'test-version', got '%s'", server.version)
+			}
+
+			if len(server.allowedDirs) != len(tc.allowedDirs) {
+				t.Errorf("Expected %d allowed directories, got %d", len(tc.allowedDirs), len(server.allowedDirs))
+			}
+
+			if server.mode != tc.mode {
+				t.Errorf("Expected mode %s, got %s", tc.mode, server.mode)
+			}
+
+			if server.httpListenAddr != tc.listenAddr {
+				t.Errorf("Expected listen address %s, got %s", tc.listenAddr, server.httpListenAddr)
+			}
+		})
+	}
+}
+
+// TestParseCommandLineArgs tests the argument processing logic
+func TestParseCommandLineArgs(t *testing.T) {
+	// Test with help flags
+	_, err := ParseCommandLineArgs("test-version", []string{"program", "--help"})
+	if err == nil || err.Error() != "help requested" {
+		t.Errorf("Expected 'help requested' error for --help flag, got: %v", err)
+	}
+
+	_, err = ParseCommandLineArgs("test-version", []string{"program", "-h"})
+	if err == nil || err.Error() != "help requested" {
+		t.Errorf("Expected 'help requested' error for -h flag, got: %v", err)
+	}
+
+	// Test insufficient arguments
+	_, err = ParseCommandLineArgs("test-version", []string{"program"})
+	if err == nil || err.Error() != "insufficient arguments" {
+		t.Errorf("Expected 'insufficient arguments' error, got: %v", err)
+	}
+
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "mcp-server-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	nonExistentDir := filepath.Join(tempDir, "non-existent")
+
+	// Create a file (not a directory)
+	filePath := filepath.Join(tempDir, "file.txt")
+	file, err := os.Create(filePath)
+	if err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+	file.Close()
+
+	// Test cases
+	testCases := []struct {
+		name      string
+		args      []string
+		shouldErr bool
+		errMsg    string
+	}{
+		{
+			name:      "Valid directory",
+			args:      []string{"program", tempDir},
+			shouldErr: false,
+		},
+		{
+			name:      "Non-existent directory",
+			args:      []string{"program", nonExistentDir},
+			shouldErr: true,
+			errMsg:    "error accessing directory",
+		},
+		{
+			name:      "Not a directory",
+			args:      []string{"program", filePath},
+			shouldErr: true,
+			errMsg:    "is not a directory",
+		},
+		{
+			name:      "Multiple directories",
+			args:      []string{"program", tempDir, tempDir},
+			shouldErr: false,
+		},
+		{
+			name:      "With mode option",
+			args:      []string{"program", "--mode=stdio", tempDir},
+			shouldErr: false,
+		},
+		{
+			name:      "With SSE mode",
+			args:      []string{"program", "--mode=sse", tempDir},
+			shouldErr: false,
+		},
+		{
+			name:      "With invalid mode",
+			args:      []string{"program", "--mode=invalid", tempDir},
+			shouldErr: true,
+			errMsg:    "invalid server mode",
+		},
+		{
+			name:      "With listen address",
+			args:      []string{"program", "--listen=127.0.0.1:8080", tempDir},
+			shouldErr: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			config, err := ParseCommandLineArgs("test-version", tc.args)
+
+			if tc.shouldErr {
+				if err == nil {
+					t.Errorf("Expected error for args %v, got nil", tc.args)
+				} else if !strings.Contains(err.Error(), tc.errMsg) {
+					t.Errorf("Expected error containing '%s', got '%s'", tc.errMsg, err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error for args %v: %v", tc.args, err)
+				}
+
+				// Verify config values
+				if config.Version != "test-version" {
+					t.Errorf("Expected version 'test-version', got '%s'", config.Version)
+				}
+
+				// Check if allowed directories are set
+				if len(config.AllowedDirs) == 0 {
+					t.Errorf("Expected at least one allowed directory")
+				}
+
+				// Check mode if specified
+				for _, arg := range tc.args {
+					if strings.HasPrefix(arg, "--mode=") {
+						mode := strings.TrimPrefix(arg, "--mode=")
+						var expectedMode ServerMode
+						switch mode {
+						case "stdio":
+							expectedMode = StdioMode
+						case "sse":
+							expectedMode = SSEMode
+						}
+						if config.ServerMode != expectedMode {
+							t.Errorf("Expected mode %s, got %s", expectedMode, config.ServerMode)
+						}
+					}
+
+					if strings.HasPrefix(arg, "--listen=") {
+						listen := strings.TrimPrefix(arg, "--listen=")
+						if config.ListenAddr != listen {
+							t.Errorf("Expected listen address %s, got %s", listen, config.ListenAddr)
+						}
+					}
 				}
 			}
 		})
-	}
-}
-
-// TestNewServer tests the NewServer function
-func TestNewServer(t *testing.T) {
-	allowedDirs := []string{"/path1", "/path2"}
-	s := NewServer(allowedDirs)
-
-	if s == nil {
-		t.Fatal("NewServer() returned nil")
-	}
-
-	if len(s.allowedDirectories) != len(allowedDirs) {
-		t.Errorf("NewServer() set %d allowed directories, want %d", len(s.allowedDirectories), len(allowedDirs))
-	}
-
-	for i, dir := range allowedDirs {
-		if s.allowedDirectories[i] != dir {
-			t.Errorf("NewServer() set allowedDirectories[%d] = %q, want %q", i, s.allowedDirectories[i], dir)
-		}
-	}
-
-	if s.reader == nil {
-		t.Error("NewServer() did not initialize reader")
-	}
-
-	if s.writer == nil {
-		t.Error("NewServer() did not initialize writer")
-	}
-}
-
-// TestSendJSON tests the sendJSON function
-func TestSendJSON(t *testing.T) {
-	// Create a server with a buffer writer for testing
-	var buf bytes.Buffer
-	writer := bufio.NewWriter(&buf)
-	s := &Server{
-		allowedDirectories: []string{"/test"},
-		reader:             nil, // Not needed for this test
-		writer:             writer,
-	}
-
-	// Test data
-	testData := map[string]string{"key": "value"}
-
-	// Call sendJSON
-	err := s.sendJSON(testData)
-	if err != nil {
-		t.Fatalf("sendJSON() returned error: %v", err)
-	}
-
-	// Verify the output
-	output := buf.String()
-	expected := `{"key":"value"}` + "\n"
-	if output != expected {
-		t.Errorf("sendJSON() wrote %q, want %q", output, expected)
-	}
-}
-
-// TestSendResponse tests the sendResponse function
-func TestSendResponse(t *testing.T) {
-	// Create a server with a buffer writer for testing
-	var buf bytes.Buffer
-	writer := bufio.NewWriter(&buf)
-	s := &Server{
-		allowedDirectories: []string{"/test"},
-		reader:             nil, // Not needed for this test
-		writer:             writer,
-	}
-
-	// Test data
-	testID := "test-id"
-	testResult := map[string]string{"status": "success"}
-
-	// Call sendResponse
-	err := s.sendResponse(testID, testResult)
-	if err != nil {
-		t.Fatalf("sendResponse() returned error: %v", err)
-	}
-
-	// Verify the output
-	output := buf.String()
-	var response Response
-	if err := json.Unmarshal([]byte(output), &response); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-
-	if response.JSONRPC != "2.0" {
-		t.Errorf("sendResponse() set JSONRPC = %q, want %q", response.JSONRPC, "2.0")
-	}
-
-	if response.ID != testID {
-		t.Errorf("sendResponse() set ID = %q, want %q", response.ID, testID)
-	}
-
-	// Check the result
-	resultJSON, err := json.Marshal(response.Result)
-	if err != nil {
-		t.Fatalf("Failed to marshal result: %v", err)
-	}
-
-	expectedResultJSON, err := json.Marshal(testResult)
-	if err != nil {
-		t.Fatalf("Failed to marshal expected result: %v", err)
-	}
-
-	if string(resultJSON) != string(expectedResultJSON) {
-		t.Errorf("sendResponse() set Result = %s, want %s", resultJSON, expectedResultJSON)
-	}
-}
-
-// TestSendErrorResponse tests the sendErrorResponse function
-func TestSendErrorResponse(t *testing.T) {
-	// Create a server with a buffer writer for testing
-	var buf bytes.Buffer
-	writer := bufio.NewWriter(&buf)
-	s := &Server{
-		allowedDirectories: []string{"/test"},
-		reader:             nil, // Not needed for this test
-		writer:             writer,
-	}
-
-	// Test data
-	testMessage := "test error message"
-
-	// Call sendErrorResponse
-	err := s.sendErrorResponse(testMessage)
-	if err != nil {
-		t.Fatalf("sendErrorResponse() returned error: %v", err)
-	}
-
-	// Verify the output
-	output := buf.String()
-	var errorResponse ErrorResponse
-	if err := json.Unmarshal([]byte(output), &errorResponse); err != nil {
-		t.Fatalf("Failed to unmarshal error response: %v", err)
-	}
-
-	if errorResponse.JSONRPC != "2.0" {
-		t.Errorf("sendErrorResponse() set JSONRPC = %q, want %q", errorResponse.JSONRPC, "2.0")
-	}
-
-	if errorResponse.Error.Message != testMessage {
-		t.Errorf("sendErrorResponse() set Error.Message = %q, want %q", errorResponse.Error.Message, testMessage)
-	}
-}
-
-// MockReadCloser is a mock io.ReadCloser for testing
-type MockReadCloser struct {
-	Reader io.Reader
-}
-
-func (m *MockReadCloser) Read(p []byte) (n int, err error) {
-	return m.Reader.Read(p)
-}
-
-func (m *MockReadCloser) Close() error {
-	return nil
-}
-
-// TestRun tests the Run function with a simple request
-func TestRun(t *testing.T) {
-	// Create a mock reader and writer for testing
-	mockInput := strings.NewReader(`{"jsonrpc":"2.0","id":"1","method":"mcp.list_tools","params":{}}
-`)
-	mockOutput := &bytes.Buffer{}
-
-	// Create a server with test directories and mock IO
-	testServer := &Server{
-		allowedDirectories: []string{"/test/dir1", "/test/dir2"},
-		reader:             bufio.NewReader(mockInput),
-		writer:             bufio.NewWriter(mockOutput),
-	}
-
-	// Run the server in a goroutine with a timeout
-	errChan := make(chan error, 1)
-	go func() {
-		errChan <- testServer.Run()
-	}()
-
-	// Wait for the server to process all input or timeout
-	select {
-	case err := <-errChan:
-		// Should reach EOF after processing all input
-		if err != nil {
-			t.Fatalf("Expected no error, got: %v", err)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("Test timed out")
-	}
-
-	// Flush the writer to ensure all data is written to the buffer
-	testServer.writer.Flush()
-
-	// Verify the output contains expected responses
-	output := mockOutput.String()
-
-	// Check for list_tools response
-	if !strings.Contains(output, `"jsonrpc":"2.0"`) ||
-		!strings.Contains(output, `"id":"1"`) ||
-		!strings.Contains(output, `"result":{"tools":[`) {
-		t.Errorf("Expected list_tools response not found in output")
-	}
-}
-
-// TestValidatePath tests the ValidatePath function with real paths
-func TestValidatePathReal(t *testing.T) {
-	// Skip this test as it's causing issues with symlinks
-	t.Skip("Skipping TestValidatePathReal due to issues with symlinks")
-}
-
-// TestExpandHomeReal tests the ExpandHome function with real paths
-func TestExpandHomeReal(t *testing.T) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		t.Fatalf("Failed to get home directory: %v", err)
-	}
-
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "Home directory",
-			input:    "~",
-			expected: homeDir,
-		},
-		{
-			name:     "Path in home directory",
-			input:    "~/documents",
-			expected: filepath.Join(homeDir, "documents"),
-		},
-		{
-			name:     "Absolute path",
-			input:    "/absolute/path",
-			expected: "/absolute/path",
-		},
-		{
-			name:     "Relative path",
-			input:    "relative/path",
-			expected: "relative/path",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := ExpandHome(tt.input)
-			if result != tt.expected {
-				t.Errorf("ExpandHome() = %q, want %q", result, tt.expected)
-			}
-		})
-	}
-}
-
-// TestRunWithError tests the Run method with an error
-func TestRunWithError(t *testing.T) {
-	// Create a server with a buffer writer for testing
-	var buf bytes.Buffer
-	writer := bufio.NewWriter(&buf)
-
-	// Create a reader that returns an error
-	errReader := bufio.NewReader(&ErrorReader{})
-
-	s := &Server{
-		allowedDirectories: []string{"/test"},
-		reader:             errReader,
-		writer:             writer,
-	}
-
-	// Run the server
-	err := s.Run()
-
-	// Verify that an error was returned
-	if err == nil {
-		t.Errorf("Expected error from Run(), got nil")
-	}
-}
-
-// ErrorReader is a reader that always returns an error
-type ErrorReader struct{}
-
-func (r *ErrorReader) Read(p []byte) (n int, err error) {
-	return 0, fmt.Errorf("test error")
-}
-
-// TestHandleCallToolWithInvalidJSON tests the handleCallTool function with invalid JSON
-func TestHandleCallToolWithInvalidArgs(t *testing.T) {
-	// Create a server with a buffer writer for testing
-	var buf bytes.Buffer
-	writer := bufio.NewWriter(&buf)
-	s := &Server{
-		allowedDirectories: []string{"/test"},
-		reader:             nil, // Not needed for this test
-		writer:             writer,
-	}
-
-	// Call the handler with missing arguments
-	s.handleCallTool("test-id", map[string]interface{}{
-		"name": "read_file",
-		// Missing args
-	})
-
-	// Flush the writer to ensure all data is written to the buffer
-	writer.Flush()
-
-	// Verify the output contains an error message
-	output := buf.String()
-	if !strings.Contains(output, "isError") {
-		t.Errorf("Expected error response for missing args, got: %s", output)
-	}
-
-	// Reset the buffer
-	buf.Reset()
-
-	// Call the handler with unknown tool
-	s.handleCallTool("test-id", map[string]interface{}{
-		"name": "unknown_tool",
-		"args": map[string]interface{}{},
-	})
-
-	// Flush the writer to ensure all data is written to the buffer
-	writer.Flush()
-
-	// Verify the output contains an error message
-	output = buf.String()
-	if !strings.Contains(output, "unknown tool") {
-		t.Errorf("Expected error response for unknown tool, got: %s", output)
-	}
-}
-
-// TestSendJSONWithError tests the sendJSON method with an error
-func TestSendJSONWithError(t *testing.T) {
-	// Create a writer that returns an error
-	errWriter := bufio.NewWriter(&ErrorWriter{})
-
-	s := &Server{
-		allowedDirectories: []string{"/test"},
-		reader:             nil, // Not needed for this test
-		writer:             errWriter,
-	}
-
-	// Call sendJSON with a simple message
-	err := s.sendJSON(map[string]interface{}{
-		"test": "value",
-	})
-
-	// Verify that an error was returned
-	if err == nil {
-		t.Errorf("Expected error from sendJSON, got nil")
-	}
-}
-
-// ErrorWriter is a writer that always returns an error
-type ErrorWriter struct{}
-
-func (w *ErrorWriter) Write(p []byte) (n int, err error) {
-	return 0, fmt.Errorf("test error")
-}
-
-// TestSendResponseWithError tests the sendResponse method with an error
-func TestSendResponseWithError(t *testing.T) {
-	// Create a writer that returns an error
-	errWriter := bufio.NewWriter(&ErrorWriter{})
-
-	s := &Server{
-		allowedDirectories: []string{"/test"},
-		reader:             nil, // Not needed for this test
-		writer:             errWriter,
-	}
-
-	// Call sendResponse with a simple message
-	err := s.sendResponse("test-id", map[string]interface{}{
-		"test": "value",
-	})
-
-	// Verify that an error was returned
-	if err == nil {
-		t.Errorf("Expected error from sendResponse, got nil")
-	}
-}
-
-// TestSendErrorResponseWithError tests the sendErrorResponse method with an error
-func TestSendErrorResponseWithError(t *testing.T) {
-	// Create a writer that returns an error
-	errWriter := bufio.NewWriter(&ErrorWriter{})
-
-	s := &Server{
-		allowedDirectories: []string{"/test"},
-		reader:             nil, // Not needed for this test
-		writer:             errWriter,
-	}
-
-	// Call sendErrorResponse with a simple message
-	err := s.sendErrorResponse("test-id")
-
-	// Verify that an error was returned
-	if err == nil {
-		t.Errorf("Expected error from sendErrorResponse, got nil")
 	}
 }
