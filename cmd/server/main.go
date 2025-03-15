@@ -6,18 +6,17 @@ import (
 	"path/filepath"
 
 	"github.com/mark3labs/mcp-go/server"
-	"github.com/modelcontextprotocol/server-filesystem/internal/tools"
+	"github.com/moguyn/mcp-go-filesystem/internal/tools"
 )
 
 // Version information set by build flags
 var (
-	Version   = "dev"
-	BuildDate = "unknown"
+	Version = "0.0.1"
 )
 
 // printUsage prints usage information
 func printUsage() {
-	fmt.Fprintf(os.Stderr, "MCP Filesystem Server v%s (built %s)\n\n", Version, BuildDate)
+	fmt.Fprintf(os.Stderr, "MCP Filesystem Server v%s\n\n", Version)
 	fmt.Fprintln(os.Stderr, "Usage: mcp-server-filesystem <allowed-directory> [additional-directories...]")
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Options:")
@@ -31,7 +30,7 @@ func printUsage() {
 
 func main() {
 	// Print version information
-	fmt.Fprintf(os.Stderr, "MCP Filesystem Server v%s (built %s)\n", Version, BuildDate)
+	fmt.Fprintf(os.Stderr, "MCP Filesystem Server v%s\n", Version)
 
 	// Command line argument parsing
 	if len(os.Args) < 2 {
