@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/moguyn/mcp-go-filesystem/internal/server"
 )
 
 func TestPrintUsage(t *testing.T) {
@@ -17,7 +19,7 @@ func TestPrintUsage(t *testing.T) {
 	os.Stderr = w
 
 	// Call the function
-	printUsage()
+	server.PrintUsage(Version)
 
 	// Restore stdout
 	w.Close()
@@ -38,7 +40,7 @@ func TestPrintUsage(t *testing.T) {
 		"-h",
 		"Show this help message",
 		"The server will only allow operations within the specified directories",
-		"Example:",
+		"Examples:",
 	}
 
 	for _, expected := range expectedStrings {
@@ -194,13 +196,13 @@ func TestMainFunction(t *testing.T) {
 			name:          "Non-existent directory",
 			args:          []string{filepath.Join(tempDir, "non-existent")},
 			expectedError: true,
-			expectedText:  "Error accessing directory",
+			expectedText:  "error accessing directory",
 		},
 		{
 			name:          "Valid directory",
 			args:          []string{tempDir},
 			expectedError: false,
-			expectedText:  "Allowed directories:",
+			expectedText:  "MCP Filesystem Server",
 		},
 	}
 
