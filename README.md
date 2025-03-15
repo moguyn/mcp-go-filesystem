@@ -1,5 +1,9 @@
 # MCP Filesystem Server
 
+[![Go CI](https://github.com/moguyn/mcp-go-filesystem/actions/workflows/ci.yml/badge.svg)](https://github.com/moguyn/mcp-go-filesystem/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/moguyn/mcp-go-filesystem/branch/main/graph/badge.svg)](https://codecov.io/gh/moguyn/mcp-go-filesystem)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A secure filesystem server for the Model Control Protocol (MCP) that provides controlled access to the local filesystem.
 
 ## Overview
