@@ -1,92 +1,53 @@
-# Go Filesystem MCP Server
+# MCP Filesystem Server
 
-[![Go CI](https://github.com/moguyn/mcp-go-filesystem/actions/workflows/ci.yml/badge.svg)](https://github.com/moguyn/mcp-go-filesystem/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/moguyn/mcp-go-filesystem/branch/main/graph/badge.svg)](https://codecov.io/gh/moguyn/mcp-go-filesystem)
-
-Go implementation of the Model Context Protocol (MCP) server for filesystem operations.
+A secure filesystem server for the Model Control Protocol (MCP) that provides controlled access to the local filesystem.
 
 ## Features
 
-- Read/write files
-- Create/list/delete directories
-- Move files/directories
-- Search files
-- Get file metadata
+- Secure access to specified directories only
+- Support for both stdio and SSE (Server-Sent Events) modes
+- File operations: read, write, edit, move
+- Directory operations: create, list, tree view
+- Search operations: find files by pattern
+- Information operations: get file metadata
 
-**Note**: The server will only allow operations within directories specified via command-line arguments.
+## Usage
 
-## Development
+```
+MCP Filesystem Server
 
-### Prerequisites
+Usage: mcp-server-filesystem [options] <allowed-directory> [additional-directories...]
 
-- Go 1.24 or later
-- Docker (optional, for containerization)
+Options:
+  --help, -h           Show this help message
+  --mode=<mode>        Server mode: 'stdio' (default) or 'sse'
+  --listen=<address>   HTTP listen address for SSE mode (default: 127.0.0.1:8080)
+
+The server will only allow operations within the specified directories.
+
+Examples:
+  mcp-server-filesystem /path/to/dir1 /path/to/dir2
+  mcp-server-filesystem --mode=sse --listen=0.0.0.0:8080 /path/to/dir
+```
+
+### Stdio Mode
+
+In stdio mode, the server communicates through standard input and output, making it suitable for integration with other applications that can manage I/O streams.
+
+### SSE Mode
+
+In SSE mode, the server runs as an HTTP server with Server-Sent Events support, allowing real-time communication over HTTP. This is useful for web-based clients or when you need to access the server over a network.
+
+## Security
+
+The server only allows operations within the directories specified on the command line. Any attempt to access files outside these directories will be rejected.
 
 ## Building
 
 ```bash
-# Using Go directly
 go build -o mcp-server-filesystem ./cmd/server
 ```
 
-## Usage
-
-### Direct Execution
-
-```bash
-# Allow access to specific directories
-./mcp-server-filesystem /path/to/dir1 /path/to/dir2
-```
-
-### Docker
-
-```bash
-# Mount directories to /projects
-docker run -i --rm \
-  --mount type=bind,src=/Users/username/Desktop,dst=/projects/Desktop \
-  --mount type=bind,src=/path/to/other/allowed/dir,dst=/projects/other/allowed/dir,ro \
-  mcp/filesystem-go /projects
-```
-
-## Integration with Claude Desktop
-
-Add this to your `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "filesystem": {
-      "command": "docker",
-      "args": [
-        "run",
-        "-i",
-        "--rm",
-        "--mount", "type=bind,src=/Users/username/Desktop,dst=/projects/Desktop",
-        "--mount", "type=bind,src=/path/to/other/allowed/dir,dst=/projects/other/allowed/dir,ro",
-        "mcp/filesystem-go",
-        "/projects"
-      ]
-    }
-  }
-}
-```
-
-## API
-
-The server implements the Model Context Protocol (MCP) with the following tools:
-
-- **read_file**: Read contents of a file
-- **read_multiple_files**: Read multiple files simultaneously
-- **write_file**: Create or overwrite a file
-- **edit_file**: Make selective edits to a file
-- **create_directory**: Create a directory
-- **list_directory**: List directory contents
-- **directory_tree**: Get recursive directory structure
-- **move_file**: Move or rename files/directories
-- **search_files**: Search for files matching a pattern
-- **get_file_info**: Get file metadata
-- **list_allowed_directories**: List allowed directories
-
 ## License
 
-MIT License 
+[MIT License](LICENSE) 
