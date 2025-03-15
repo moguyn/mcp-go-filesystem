@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0](https://github.com/moguyn/mcp-go-filesystem/compare/v0.0.7...v0.1.0) (2025-03-15)
+
+
+### Features
+
+* support SSE mode ([#18](https://github.com/moguyn/mcp-go-filesystem/issues/18)) ([e1c55f7](https://github.com/moguyn/mcp-go-filesystem/commit/e1c55f7b9dc397bb0a1a74a9adb7cb6f2d4a8ccc))
+
 ## [0.0.7](https://github.com/moguyn/mcp-go-filesystem/compare/v0.0.6...v0.0.7) (2025-03-14)
 
 
