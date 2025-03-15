@@ -16,6 +16,7 @@ type Server struct {
 	allowedDirectories []string
 	reader             *bufio.Reader
 	writer             *bufio.Writer
+	isSSEMode          bool
 }
 
 // NewServer creates a new MCP filesystem server
@@ -24,7 +25,35 @@ func NewServer(allowedDirectories []string) *Server {
 		allowedDirectories: allowedDirectories,
 		reader:             bufio.NewReader(os.Stdin),
 		writer:             bufio.NewWriter(os.Stdout),
+		isSSEMode:          false,
 	}
+}
+
+// sendSSE sends a message in SSE format
+func (s *Server) sendSSE(event string, data interface{}, id string) error {
+	msg := SSEMessage{
+		Event: event,
+		Data:  data,
+		ID:    id,
+	}
+
+	jsonData, err := json.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("error marshaling SSE message: %w", err)
+	}
+
+	// Format as SSE
+	response := fmt.Sprintf("event: %s\ndata: %s\n", event, string(jsonData))
+	if id != "" {
+		response = fmt.Sprintf("id: %s\n%s", id, response)
+	}
+	response += "\n"
+
+	_, err = fmt.Fprint(s.writer, response)
+	if err != nil {
+		return fmt.Errorf("error writing SSE message: %w", err)
+	}
+	return s.writer.Flush()
 }
 
 // Run starts the server and processes incoming requests
@@ -56,17 +85,26 @@ func (s *Server) Run() error {
 		if err := json.Unmarshal([]byte(line), &genericRequest); err != nil {
 			fmt.Fprintf(os.Stderr, "Error parsing generic request: %v\n", err)
 			// We can't send a proper error response without an ID
-			// Send a response with a null ID
-			errorResp := map[string]interface{}{
-				"jsonrpc": "2.0",
-				"id":      nil,
-				"error": map[string]interface{}{
+			if s.isSSEMode {
+				errorResp := map[string]interface{}{
 					"code":    -32700, // Parse error
 					"message": fmt.Sprintf("Parse error: %v", err),
-				},
-			}
-			if err := s.sendJSON(errorResp); err != nil {
-				return fmt.Errorf("error sending error response: %w", err)
+				}
+				if err := s.sendSSE("error", errorResp, ""); err != nil {
+					return fmt.Errorf("error sending SSE error response: %w", err)
+				}
+			} else {
+				errorResp := map[string]interface{}{
+					"jsonrpc": "2.0",
+					"id":      nil,
+					"error": map[string]interface{}{
+						"code":    -32700, // Parse error
+						"message": fmt.Sprintf("Parse error: %v", err),
+					},
+				}
+				if err := s.sendJSON(errorResp); err != nil {
+					return fmt.Errorf("error sending error response: %w", err)
+				}
 			}
 			continue
 		}
@@ -80,18 +118,33 @@ func (s *Server) Run() error {
 			var params InitializeParams
 			if err := json.Unmarshal(genericRequest.Params, &params); err != nil {
 				fmt.Fprintf(os.Stderr, "Error parsing initialize params: %v\n", err)
-				errorResp := map[string]interface{}{
-					"jsonrpc": "2.0",
-					"id":      genericRequest.ID,
-					"error": map[string]interface{}{
+				if s.isSSEMode {
+					errorResp := map[string]interface{}{
 						"code":    -32602, // Invalid params
 						"message": fmt.Sprintf("Invalid params: %v", err),
-					},
-				}
-				if err := s.sendJSON(errorResp); err != nil {
-					return fmt.Errorf("error sending error response: %w", err)
+					}
+					if err := s.sendSSE("error", errorResp, fmt.Sprintf("%v", genericRequest.ID)); err != nil {
+						return fmt.Errorf("error sending SSE error response: %w", err)
+					}
+				} else {
+					errorResp := map[string]interface{}{
+						"jsonrpc": "2.0",
+						"id":      genericRequest.ID,
+						"error": map[string]interface{}{
+							"code":    -32602, // Invalid params
+							"message": fmt.Sprintf("Invalid params: %v", err),
+						},
+					}
+					if err := s.sendJSON(errorResp); err != nil {
+						return fmt.Errorf("error sending error response: %w", err)
+					}
 				}
 				continue
+			}
+
+			// Check if SSE mode is requested
+			if params.Mode == "sse" {
+				s.isSSEMode = true
 			}
 
 			// Send initialize response
@@ -101,17 +154,24 @@ func (s *Server) Run() error {
 					Version: "1.0.0",
 				},
 				ProtocolVersion: "2024-11-05",
-				Capabilities:    map[string]interface{}{},
+				Capabilities: map[string]interface{}{
+					"sse": s.isSSEMode,
+				},
 			}
 
-			response := Response{
-				JSONRPC: "2.0",
-				ID:      genericRequest.ID,
-				Result:  result,
-			}
-
-			if err := s.sendJSON(response); err != nil {
-				return fmt.Errorf("error sending initialize response: %w", err)
+			if s.isSSEMode {
+				if err := s.sendSSE("initialize", result, fmt.Sprintf("%v", genericRequest.ID)); err != nil {
+					return fmt.Errorf("error sending SSE initialize response: %w", err)
+				}
+			} else {
+				response := map[string]interface{}{
+					"jsonrpc": "2.0",
+					"id":      genericRequest.ID,
+					"result":  result,
+				}
+				if err := s.sendJSON(response); err != nil {
+					return fmt.Errorf("error sending initialize response: %w", err)
+				}
 			}
 
 		case "mcp.list_tools":
@@ -123,16 +183,26 @@ func (s *Server) Run() error {
 			// Parse the call_tool params
 			var params map[string]interface{}
 			if err := json.Unmarshal(genericRequest.Params, &params); err != nil {
-				errorResp := map[string]interface{}{
-					"jsonrpc": "2.0",
-					"id":      genericRequest.ID,
-					"error": map[string]interface{}{
+				if s.isSSEMode {
+					errorResp := map[string]interface{}{
 						"code":    -32602, // Invalid params
 						"message": fmt.Sprintf("Invalid params: %v", err),
-					},
-				}
-				if err := s.sendJSON(errorResp); err != nil {
-					return fmt.Errorf("error sending error response: %w", err)
+					}
+					if err := s.sendSSE("error", errorResp, fmt.Sprintf("%v", genericRequest.ID)); err != nil {
+						return fmt.Errorf("error sending SSE error response: %w", err)
+					}
+				} else {
+					errorResp := map[string]interface{}{
+						"jsonrpc": "2.0",
+						"id":      genericRequest.ID,
+						"error": map[string]interface{}{
+							"code":    -32602, // Invalid params
+							"message": fmt.Sprintf("Invalid params: %v", err),
+						},
+					}
+					if err := s.sendJSON(errorResp); err != nil {
+						return fmt.Errorf("error sending error response: %w", err)
+					}
 				}
 				continue
 			}
@@ -142,16 +212,26 @@ func (s *Server) Run() error {
 			}
 
 		default:
-			errorResp := map[string]interface{}{
-				"jsonrpc": "2.0",
-				"id":      genericRequest.ID,
-				"error": map[string]interface{}{
+			if s.isSSEMode {
+				errorResp := map[string]interface{}{
 					"code":    -32601, // Method not found
 					"message": fmt.Sprintf("Method not found: %s", genericRequest.Method),
-				},
-			}
-			if err := s.sendJSON(errorResp); err != nil {
-				return fmt.Errorf("error sending error response: %w", err)
+				}
+				if err := s.sendSSE("error", errorResp, fmt.Sprintf("%v", genericRequest.ID)); err != nil {
+					return fmt.Errorf("error sending SSE error response: %w", err)
+				}
+			} else {
+				errorResp := map[string]interface{}{
+					"jsonrpc": "2.0",
+					"id":      genericRequest.ID,
+					"error": map[string]interface{}{
+						"code":    -32601, // Method not found
+						"message": fmt.Sprintf("Method not found: %s", genericRequest.Method),
+					},
+				}
+				if err := s.sendJSON(errorResp); err != nil {
+					return fmt.Errorf("error sending error response: %w", err)
+				}
 			}
 		}
 	}
@@ -250,19 +330,6 @@ func (s *Server) sendResponse(id interface{}, result interface{}) error {
 		"result":  result,
 	}
 	return s.sendJSON(response)
-}
-
-// sendErrorResponse sends an error response
-func (s *Server) sendErrorResponse(message string) error {
-	errorResponse := map[string]interface{}{
-		"jsonrpc": "2.0",
-		"id":      nil,
-		"error": map[string]interface{}{
-			"code":    -32000,
-			"message": message,
-		},
-	}
-	return s.sendJSON(errorResponse)
 }
 
 // sendErrorResponseWithID sends an error response with the specified request ID

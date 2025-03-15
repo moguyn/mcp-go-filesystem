@@ -627,26 +627,6 @@ func TestHandleEditFileError(t *testing.T) {
 	}
 }
 
-// testServer is a custom server for testing with a mock ValidatePath method
-type testServer struct {
-	Server
-	tempDir string
-}
-
-// ValidatePath is a mock implementation for testing
-func (s *testServer) ValidatePath(path string) (string, error) {
-	// For testing, just return the path if it's within the temp directory
-	if strings.HasPrefix(path, s.tempDir) {
-		return path, nil
-	}
-	return "", fmt.Errorf("access denied - path outside allowed directories")
-}
-
-// handleEditFile delegates to the Server's handleEditFile method
-func (s *testServer) handleEditFile(args map[string]interface{}) (ToolResponse, error) {
-	return s.Server.handleEditFile(args)
-}
-
 // TestHandleReadMultipleFiles tests the handleReadMultipleFiles function
 func TestHandleReadMultipleFiles(t *testing.T) {
 	// Create a server with a buffer writer for testing

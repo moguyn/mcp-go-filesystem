@@ -245,8 +245,8 @@ func TestSendResponse(t *testing.T) {
 	}
 }
 
-// TestSendErrorResponse tests the sendErrorResponse function
-func TestSendErrorResponse(t *testing.T) {
+// TestSendErrorResponseWithID tests the sendErrorResponseWithID function
+func TestSendErrorResponseWithID(t *testing.T) {
 	// Create a server with a buffer writer for testing
 	var buf bytes.Buffer
 	writer := bufio.NewWriter(&buf)
@@ -257,12 +257,13 @@ func TestSendErrorResponse(t *testing.T) {
 	}
 
 	// Test data
+	testID := "test-id"
 	testMessage := "test error message"
 
-	// Call sendErrorResponse
-	err := s.sendErrorResponse(testMessage)
+	// Call sendErrorResponseWithID
+	err := s.sendErrorResponseWithID(testID, testMessage)
 	if err != nil {
-		t.Fatalf("sendErrorResponse() returned error: %v", err)
+		t.Fatalf("sendErrorResponseWithID() returned error: %v", err)
 	}
 
 	// Verify the output
@@ -273,11 +274,15 @@ func TestSendErrorResponse(t *testing.T) {
 	}
 
 	if errorResponse.JSONRPC != "2.0" {
-		t.Errorf("sendErrorResponse() set JSONRPC = %q, want %q", errorResponse.JSONRPC, "2.0")
+		t.Errorf("sendErrorResponseWithID() set JSONRPC = %q, want %q", errorResponse.JSONRPC, "2.0")
+	}
+
+	if errorResponse.ID != testID {
+		t.Errorf("sendErrorResponseWithID() set ID = %v, want %v", errorResponse.ID, testID)
 	}
 
 	if errorResponse.Error.Message != testMessage {
-		t.Errorf("sendErrorResponse() set Error.Message = %q, want %q", errorResponse.Error.Message, testMessage)
+		t.Errorf("sendErrorResponseWithID() set Error.Message = %q, want %q", errorResponse.Error.Message, testMessage)
 	}
 }
 
@@ -442,8 +447,21 @@ func TestHandleCallToolWithInvalidArgs(t *testing.T) {
 
 	// Verify the output contains an error message
 	output := buf.String()
-	if !strings.Contains(output, "isError") {
+	var response map[string]interface{}
+	if err := json.Unmarshal([]byte(output), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	// Check for error response format
+	if response["error"] == nil {
 		t.Errorf("Expected error response for missing args, got: %s", output)
+	}
+	if errObj, ok := response["error"].(map[string]interface{}); ok {
+		if errObj["message"] != "missing or invalid args" {
+			t.Errorf("Expected error message 'missing or invalid args', got: %v", errObj["message"])
+		}
+	} else {
+		t.Errorf("Expected error object in response, got: %s", output)
 	}
 
 	// Reset the buffer
@@ -516,7 +534,7 @@ func TestSendResponseWithError(t *testing.T) {
 	}
 }
 
-// TestSendErrorResponseWithError tests the sendErrorResponse method with an error
+// TestSendErrorResponseWithError tests the sendErrorResponseWithID method with an error
 func TestSendErrorResponseWithError(t *testing.T) {
 	// Create a writer that returns an error
 	errWriter := bufio.NewWriter(&ErrorWriter{})
@@ -527,11 +545,11 @@ func TestSendErrorResponseWithError(t *testing.T) {
 		writer:             errWriter,
 	}
 
-	// Call sendErrorResponse with a simple message
-	err := s.sendErrorResponse("test-id")
+	// Call sendErrorResponseWithID with a simple message
+	err := s.sendErrorResponseWithID("test-id", "test message")
 
 	// Verify that an error was returned
 	if err == nil {
-		t.Errorf("Expected error from sendErrorResponse, got nil")
+		t.Errorf("Expected error from sendErrorResponseWithID, got nil")
 	}
 }

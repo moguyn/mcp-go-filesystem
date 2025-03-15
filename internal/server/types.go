@@ -1,33 +1,5 @@
 package server
 
-// Request represents an incoming JSON-RPC request
-type Request struct {
-	JSONRPC string                 `json:"jsonrpc"`
-	ID      interface{}            `json:"id"`
-	Method  string                 `json:"method"`
-	Params  map[string]interface{} `json:"params"`
-}
-
-// Response represents a successful JSON-RPC response
-type Response struct {
-	JSONRPC string      `json:"jsonrpc"`
-	ID      interface{} `json:"id"`
-	Result  interface{} `json:"result"`
-}
-
-// ErrorResponse represents an error JSON-RPC response
-type ErrorResponse struct {
-	JSONRPC string      `json:"jsonrpc"`
-	ID      interface{} `json:"id"`
-	Error   Error       `json:"error"`
-}
-
-// Error represents a JSON-RPC error
-type Error struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-}
-
 // Implementation represents client or server information
 type Implementation struct {
 	Name    string `json:"name"`
@@ -39,6 +11,7 @@ type InitializeParams struct {
 	ClientInfo      Implementation         `json:"clientInfo"`
 	ProtocolVersion string                 `json:"protocolVersion"`
 	Capabilities    map[string]interface{} `json:"capabilities"`
+	Mode            string                 `json:"mode,omitempty"`
 }
 
 // InitializeResult represents the response to an initialize request
@@ -94,4 +67,31 @@ type TreeEntry struct {
 type EditOperation struct {
 	OldText string `json:"oldText"`
 	NewText string `json:"newText"`
+}
+
+// SSEMessage represents a Server-Sent Events message
+type SSEMessage struct {
+	Event string      `json:"event"`
+	Data  interface{} `json:"data"`
+	ID    string      `json:"id,omitempty"`
+}
+
+// Response represents a successful JSON-RPC response
+type Response struct {
+	JSONRPC string      `json:"jsonrpc"`
+	ID      interface{} `json:"id"`
+	Result  interface{} `json:"result"`
+}
+
+// Error represents a JSON-RPC error
+type Error struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+// ErrorResponse represents an error JSON-RPC response
+type ErrorResponse struct {
+	JSONRPC string      `json:"jsonrpc"`
+	ID      interface{} `json:"id"`
+	Error   Error       `json:"error"`
 }

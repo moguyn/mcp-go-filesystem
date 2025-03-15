@@ -239,59 +239,95 @@ func (s *Server) handleListTools(id interface{}) error {
 		},
 	}
 
-	return s.sendResponse(id, ListToolsResponse{Tools: tools})
+	result := ListToolsResponse{Tools: tools}
+	if s.isSSEMode {
+		return s.sendSSE("list_tools", result, fmt.Sprintf("%v", id))
+	}
+	return s.sendResponse(id, result)
 }
 
 // handleCallTool handles the mcp.call_tool request
 func (s *Server) handleCallTool(id interface{}, params map[string]interface{}) error {
 	toolName, ok := params["name"].(string)
 	if !ok {
+		if s.isSSEMode {
+			return s.sendSSE("error", map[string]interface{}{
+				"code":    -32602,
+				"message": "missing or invalid tool name",
+			}, fmt.Sprintf("%v", id))
+		}
 		return s.sendErrorResponseWithID(id, "missing or invalid tool name")
 	}
 
-	args, ok := params["arguments"].(map[string]interface{})
-	if !ok {
-		args = map[string]interface{}{}
-	}
-
-	var response ToolResponse
+	// Check if the tool exists before checking args
+	var result ToolResponse
 	var err error
 
 	switch toolName {
-	case "read_file":
-		response, err = s.handleReadFile(args)
-	case "read_multiple_files":
-		response, err = s.handleReadMultipleFiles(args)
-	case "write_file":
-		response, err = s.handleWriteFile(args)
-	case "edit_file":
-		response, err = s.handleEditFile(args)
-	case "create_directory":
-		response, err = s.handleCreateDirectory(args)
-	case "list_directory":
-		response, err = s.handleListDirectory(args)
-	case "directory_tree":
-		response, err = s.handleDirectoryTree(args)
-	case "move_file":
-		response, err = s.handleMoveFile(args)
-	case "search_files":
-		response, err = s.handleSearchFiles(args)
-	case "get_file_info":
-		response, err = s.handleGetFileInfo(args)
-	case "list_allowed_directories":
-		response, err = s.handleListAllowedDirectories(args)
+	case "read_file", "read_multiple_files", "write_file", "edit_file",
+		"create_directory", "list_directory", "directory_tree", "move_file",
+		"search_files", "get_file_info", "list_allowed_directories":
+		// Tool exists, now check args
+		args, ok := params["args"].(map[string]interface{})
+		if !ok {
+			if s.isSSEMode {
+				return s.sendSSE("error", map[string]interface{}{
+					"code":    -32602,
+					"message": "missing or invalid args",
+				}, fmt.Sprintf("%v", id))
+			}
+			return s.sendErrorResponseWithID(id, "missing or invalid args")
+		}
+
+		// Process the tool
+		switch toolName {
+		case "read_file":
+			result, err = s.handleReadFile(args)
+		case "read_multiple_files":
+			result, err = s.handleReadMultipleFiles(args)
+		case "write_file":
+			result, err = s.handleWriteFile(args)
+		case "edit_file":
+			result, err = s.handleEditFile(args)
+		case "create_directory":
+			result, err = s.handleCreateDirectory(args)
+		case "list_directory":
+			result, err = s.handleListDirectory(args)
+		case "directory_tree":
+			result, err = s.handleDirectoryTree(args)
+		case "move_file":
+			result, err = s.handleMoveFile(args)
+		case "search_files":
+			result, err = s.handleSearchFiles(args)
+		case "get_file_info":
+			result, err = s.handleGetFileInfo(args)
+		case "list_allowed_directories":
+			result, err = s.handleListAllowedDirectories(args)
+		}
 	default:
+		if s.isSSEMode {
+			return s.sendSSE("error", map[string]interface{}{
+				"code":    -32601,
+				"message": fmt.Sprintf("unknown tool: %s", toolName),
+			}, fmt.Sprintf("%v", id))
+		}
 		return s.sendErrorResponseWithID(id, fmt.Sprintf("unknown tool: %s", toolName))
 	}
 
 	if err != nil {
-		response = ToolResponse{
-			Content: []ContentItem{{Type: "text", Text: fmt.Sprintf("Error: %v", err)}},
-			IsError: true,
+		if s.isSSEMode {
+			return s.sendSSE("error", map[string]interface{}{
+				"code":    -32603,
+				"message": err.Error(),
+			}, fmt.Sprintf("%v", id))
 		}
+		return s.sendErrorResponseWithID(id, err.Error())
 	}
 
-	return s.sendResponse(id, response)
+	if s.isSSEMode {
+		return s.sendSSE(toolName, result, fmt.Sprintf("%v", id))
+	}
+	return s.sendResponse(id, result)
 }
 
 // handleReadFile handles the read_file tool
