@@ -32,7 +32,7 @@ func TestInitialize(t *testing.T) {
 
 	// Initialize should not panic
 	assert.NotPanics(t, func() {
-		s.Initialize()
+		s.initialize()
 	})
 }
 
@@ -40,12 +40,6 @@ func TestServerModes(t *testing.T) {
 	// Test the server mode constants
 	assert.Equal(t, ServerMode("stdio"), StdioMode)
 	assert.Equal(t, ServerMode("sse"), SSEMode)
-}
-
-// Mock for the MCPServer to avoid actual server operations
-type mockMCPServer struct {
-	*server.MCPServer
-	startCalled bool
 }
 
 func TestStartInvalidMode(t *testing.T) {

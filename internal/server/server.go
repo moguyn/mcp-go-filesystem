@@ -44,14 +44,17 @@ func NewServer(version string, allowedDirs []string, mode ServerMode, httpListen
 	}
 }
 
-// Initialize sets up the server by registering all tools
-func (s *Server) Initialize() {
+// initialize sets up the server by registering all tools
+func (s *Server) initialize() {
 	// Register all filesystem tools
 	tools.RegisterTools(s.mcpServer, s.allowedDirs)
 }
 
 // Start starts the server in the configured mode
 func (s *Server) Start() error {
+	// Initialize the server before starting
+	s.initialize()
+
 	fmt.Fprintln(os.Stderr, "Allowed directories:", s.allowedDirs)
 
 	switch s.mode {

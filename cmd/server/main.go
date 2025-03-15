@@ -34,7 +34,6 @@ func main() {
 
 	// Create and initialize the server
 	s := server.NewServer(config.Version, config.AllowedDirs, config.ServerMode, config.ListenAddr)
-	s.Initialize()
 
 	// Start the server
 	if err := s.Start(); err != nil {
