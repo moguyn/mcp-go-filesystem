@@ -1,10 +1,12 @@
 package server
 
 import (
+	"context"
 	"fmt"
-	"os"
 
 	"github.com/mark3labs/mcp-go/server"
+	"github.com/moguyn/mcp-go-filesystem/internal/config"
+	"github.com/moguyn/mcp-go-filesystem/internal/logging"
 	"github.com/moguyn/mcp-go-filesystem/internal/tools"
 )
 
@@ -23,24 +25,54 @@ type Server struct {
 	mcpServer      *server.MCPServer
 	allowedDirs    []string
 	version        string
-	mode           ServerMode
+	mode           config.ServerMode
 	httpListenAddr string
+	logger         *logging.Logger
+	ctx            context.Context
+	cancel         context.CancelFunc
 }
 
 // NewServer creates a new filesystem server
-func NewServer(version string, allowedDirs []string, mode ServerMode, httpListenAddr string) *Server {
+func NewServer(cfg *config.Config) *Server {
 	// Create a new MCP server
 	mcpServer := server.NewMCPServer(
 		"mcp-go-filesystem",
-		version,
+		cfg.Version,
 	)
+
+	// Create a context with cancellation
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Create a logger
+	logger := logging.DefaultLogger("server")
+	if cfg.LogLevel != "" {
+		var level logging.LogLevel
+		switch cfg.LogLevel {
+		case "DEBUG":
+			level = logging.DEBUG
+		case "INFO":
+			level = logging.INFO
+		case "WARN":
+			level = logging.WARN
+		case "ERROR":
+			level = logging.ERROR
+		case "FATAL":
+			level = logging.FATAL
+		default:
+			level = logging.INFO
+		}
+		logger.SetLevel(level)
+	}
 
 	return &Server{
 		mcpServer:      mcpServer,
-		allowedDirs:    allowedDirs,
-		version:        version,
-		mode:           mode,
-		httpListenAddr: httpListenAddr,
+		allowedDirs:    cfg.AllowedDirs,
+		version:        cfg.Version,
+		mode:           cfg.ServerMode,
+		httpListenAddr: cfg.ListenAddr,
+		logger:         logger,
+		ctx:            ctx,
+		cancel:         cancel,
 	}
 }
 
@@ -55,18 +87,24 @@ func (s *Server) Start() error {
 	// Initialize the server before starting
 	s.initialize()
 
-	fmt.Fprintln(os.Stderr, "Allowed directories:", s.allowedDirs)
+	s.logger.Info("Allowed directories: %v", s.allowedDirs)
 
 	switch s.mode {
-	case StdioMode:
-		fmt.Fprintln(os.Stderr, "Running in stdio mode")
+	case config.StdioMode:
+		s.logger.Info("Running in stdio mode")
 		return server.ServeStdio(s.mcpServer)
-	case SSEMode:
-		fmt.Fprintf(os.Stderr, "Running in SSE mode on %s\n", s.httpListenAddr)
+	case config.SSEMode:
+		s.logger.Info("Running in SSE mode on %s", s.httpListenAddr)
 		return startSSEServer(s)
 	default:
 		return fmt.Errorf("unsupported server mode: %s", s.mode)
 	}
+}
+
+// Stop stops the server
+func (s *Server) Stop() {
+	s.logger.Info("Stopping server")
+	s.cancel()
 }
 
 // startSSEServer starts the server in SSE mode

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -29,22 +30,18 @@ func handleGetFileInfo(request mcp.CallToolRequest, allowedDirectories []string)
 		return nil, fmt.Errorf("error getting file info: %v", err)
 	}
 
-	// Format permissions
-	perms := info.Mode().String()
-
-	// Get file times - use modification time as fallback for created/accessed
-	created := info.ModTime().Format(time.RFC3339)
-	accessed := info.ModTime().Format(time.RFC3339)
-
 	// Create file info
 	fileInfo := FileInfo{
-		Size:        info.Size(),
-		Created:     created,
-		Modified:    info.ModTime().Format(time.RFC3339),
-		Accessed:    accessed,
-		IsDirectory: info.IsDir(),
-		IsFile:      !info.IsDir(),
-		Permissions: perms,
+		Name:    filepath.Base(validPath),
+		Path:    path,
+		Size:    info.Size(),
+		IsDir:   info.IsDir(),
+		ModTime: info.ModTime().Format(time.RFC3339),
+	}
+
+	// Add extension if it's a file
+	if !info.IsDir() {
+		fileInfo.Extension = filepath.Ext(validPath)
 	}
 
 	// Format results
