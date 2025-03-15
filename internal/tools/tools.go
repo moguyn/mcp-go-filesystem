@@ -366,30 +366,33 @@ func handleListDirectory(request mcp.CallToolRequest, allowedDirectories []strin
 		return mcp.NewToolResultError(fmt.Sprintf("Error reading directory: %v", err)), nil
 	}
 
-	// Format results
-	var resultBuilder strings.Builder
-	resultBuilder.WriteString(fmt.Sprintf("Contents of %s:\n\n", path))
-
+	// Build FileInfo array
+	fileInfos := make([]FileInfo, 0, len(entries))
 	for _, entry := range entries {
 		info, err := entry.Info()
 		if err != nil {
 			continue
 		}
 
-		entryType := "file"
-		if entry.IsDir() {
-			entryType = "directory"
+		fileInfo := FileInfo{
+			Size:        info.Size(),
+			Created:     time.Now().Format(time.RFC3339), // os.FileInfo doesn't provide creation time
+			Modified:    info.ModTime().Format(time.RFC3339),
+			Accessed:    time.Now().Format(time.RFC3339), // os.FileInfo doesn't provide access time
+			IsDirectory: entry.IsDir(),
+			IsFile:      !entry.IsDir(),
+			Permissions: info.Mode().String(),
 		}
-
-		resultBuilder.WriteString(fmt.Sprintf("%s (%s, %d bytes, modified %s)\n",
-			entry.Name(),
-			entryType,
-			info.Size(),
-			info.ModTime().Format(time.RFC3339),
-		))
+		fileInfos = append(fileInfos, fileInfo)
 	}
 
-	return mcp.NewToolResultText(resultBuilder.String()), nil
+	// Convert to JSON
+	jsonData, err := json.Marshal(fileInfos)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Error formatting directory listing: %v", err)), nil
+	}
+
+	return mcp.NewToolResultText(string(jsonData)), nil
 }
 
 // handleDirectoryTree handles the directory_tree tool
