@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mark3labs/mcp-go/server"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -73,11 +72,7 @@ func TestStartModes(t *testing.T) {
 	t.Run("StdioMode", func(t *testing.T) {
 		// Create a server with stdio mode
 		s := &Server{
-			mcpServer:      server.NewMCPServer("test", "1.0.0"),
-			allowedDirs:    []string{"/test/dir"},
-			version:        "1.0.0",
-			mode:           StdioMode,
-			httpListenAddr: "localhost:8080",
+			mode: StdioMode,
 		}
 
 		// We can't fully test this without mocking os.Stdin/os.Stdout
@@ -89,9 +84,6 @@ func TestStartModes(t *testing.T) {
 	t.Run("SSEMode", func(t *testing.T) {
 		// Create a server with SSE mode
 		s := &Server{
-			mcpServer:      server.NewMCPServer("test", "1.0.0"),
-			allowedDirs:    []string{"/test/dir"},
-			version:        "1.0.0",
 			mode:           SSEMode,
 			httpListenAddr: "localhost:0", // Use port 0 to get a random available port
 		}
