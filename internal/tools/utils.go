@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"fmt"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -27,6 +28,11 @@ func ExpandHome(path string) string {
 
 // ValidatePath checks if a path is within the allowed directories
 func ValidatePath(requestedPath string, allowedDirectories []string) (string, error) {
+	// Check for invalid characters in the path
+	if strings.ContainsRune(requestedPath, 0) {
+		return "", fmt.Errorf("path contains invalid characters")
+	}
+
 	// Normalize the path
 	expandedPath := ExpandHome(requestedPath)
 	absPath, err := filepath.Abs(expandedPath)

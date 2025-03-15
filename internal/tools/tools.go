@@ -250,12 +250,16 @@ func handleReadMultipleFiles(request mcp.CallToolRequest, allowedDirectories []s
 	}
 
 	// Read each file
-	var resultBuilder strings.Builder
+	contents := make([]interface{}, 0, len(paths))
+	hasError := false
 	for _, path := range paths {
 		// Validate path
 		validPath, err := ValidatePath(path, allowedDirectories)
 		if err != nil {
-			resultBuilder.WriteString(fmt.Sprintf("Error with %s: Invalid path: %v\n\n", path, err))
+			hasError = true
+			contents = append(contents, mcp.TextContent{
+				Text: fmt.Sprintf("Error with %s: Invalid path: %v", path, err),
+			})
 			continue
 		}
 
@@ -263,14 +267,23 @@ func handleReadMultipleFiles(request mcp.CallToolRequest, allowedDirectories []s
 		// #nosec G304 -- validPath has been validated by ValidatePath
 		content, err := os.ReadFile(validPath)
 		if err != nil {
-			resultBuilder.WriteString(fmt.Sprintf("Error reading %s: %v\n\n", path, err))
+			hasError = true
+			contents = append(contents, mcp.TextContent{
+				Text: fmt.Sprintf("Error reading %s: %v", path, err),
+			})
 			continue
 		}
 
-		resultBuilder.WriteString(fmt.Sprintf("=== %s ===\n%s\n\n", path, string(content)))
+		contents = append(contents, mcp.TextContent{
+			Text: string(content),
+		})
 	}
 
-	return mcp.NewToolResultText(resultBuilder.String()), nil
+	result := &mcp.CallToolResult{
+		Content: contents,
+		IsError: hasError,
+	}
+	return result, nil
 }
 
 // handleWriteFile handles the write_file tool
@@ -403,11 +416,21 @@ func handleDirectoryTree(request mcp.CallToolRequest, allowedDirectories []strin
 	if maxDepthRaw, ok := request.Params.Arguments["max_depth"].(float64); ok {
 		maxDepth = int(maxDepthRaw)
 	}
+	fmt.Printf("maxDepth from request: %d\n", maxDepth)
 
 	// Validate path
 	validPath, err := ValidatePath(path, allowedDirectories)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Invalid path: %v", err)), nil
+	}
+
+	// Check if path is a directory
+	info, err := os.Stat(validPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Error accessing path: %v", err)), nil
+	}
+	if !info.IsDir() {
+		return mcp.NewToolResultError("Path is not a directory"), nil
 	}
 
 	// Build directory tree
@@ -427,17 +450,22 @@ func handleDirectoryTree(request mcp.CallToolRequest, allowedDirectories []strin
 
 // buildDirectoryTree builds a directory tree
 func buildDirectoryTree(rootPath string, maxDepth int) ([]TreeEntry, error) {
+	fmt.Printf("Building tree for %s with maxDepth %d\n", rootPath, maxDepth)
 	if maxDepth <= 0 {
-		return nil, nil
+		fmt.Printf("maxDepth <= 0, returning empty array\n")
+		return []TreeEntry{}, nil
 	}
 
 	entries, err := os.ReadDir(rootPath)
 	if err != nil {
-		return nil, err
+		fmt.Printf("Error reading directory %s: %v\n", rootPath, err)
+		return nil, fmt.Errorf("failed to read directory: %w", err)
 	}
 
+	fmt.Printf("Found %d entries in %s\n", len(entries), rootPath)
 	result := make([]TreeEntry, 0, len(entries))
 	for _, entry := range entries {
+		fmt.Printf("Processing entry %s (isDir: %v)\n", entry.Name(), entry.IsDir())
 		entryType := "file"
 		var children []TreeEntry
 
@@ -446,9 +474,12 @@ func buildDirectoryTree(rootPath string, maxDepth int) ([]TreeEntry, error) {
 			if maxDepth > 1 {
 				children, err = buildDirectoryTree(filepath.Join(rootPath, entry.Name()), maxDepth-1)
 				if err != nil {
-					// Skip this directory if there's an error
-					continue
+					fmt.Printf("Error building tree for %s: %v\n", entry.Name(), err)
+					// Log the error but continue with other entries
+					children = []TreeEntry{}
 				}
+			} else {
+				children = []TreeEntry{}
 			}
 		}
 
@@ -459,6 +490,7 @@ func buildDirectoryTree(rootPath string, maxDepth int) ([]TreeEntry, error) {
 		})
 	}
 
+	fmt.Printf("Returning %d entries for %s\n", len(result), rootPath)
 	return result, nil
 }
 
