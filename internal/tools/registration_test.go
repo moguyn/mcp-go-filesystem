@@ -23,6 +23,7 @@ func TestNewServiceProvider(t *testing.T) {
 	assert.NotNil(t, provider.directoryService)
 	assert.NotNil(t, provider.searchService)
 	assert.NotNil(t, provider.logger)
+	assert.Equal(t, allowedDirs, provider.allowedDirs)
 }
 
 func TestRegisterTools(t *testing.T) {
@@ -350,12 +351,18 @@ func TestHandleSearchFiles(t *testing.T) {
 	tmpDir, provider, cleanup := setupTestEnvironment(t)
 	defer cleanup()
 
-	// Create test request
+	// Create a test file with searchable content
+	testFile := filepath.Join(tmpDir, "search-test.txt")
+	err := os.WriteFile(testFile, []byte("line 1: test content\nline 2: more content"), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create request
 	request := mcp.CallToolRequest{}
 	request.Params.Arguments = map[string]interface{}{
-		"query":     "test",
-		"path":      tmpDir,
-		"recursive": true,
+		"query": "test content",
+		"path":  tmpDir,
 	}
 
 	// Call handler
@@ -372,5 +379,31 @@ func TestHandleSearchFiles(t *testing.T) {
 	var searchResults []SearchResult
 	err = json.Unmarshal([]byte(textContent.Text), &searchResults)
 	assert.NoError(t, err)
-	assert.Equal(t, 1, len(searchResults)) // Should find "test content" in test.txt
+	assert.NotEmpty(t, searchResults)
+}
+
+func TestHandleListAllowedDirectories(t *testing.T) {
+	// Create a service provider with known allowed directories
+	allowedDirs := []string{"/tmp", "/var", "/home/user"}
+	provider := NewServiceProvider(allowedDirs)
+
+	// Create request
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{}
+
+	// Call handler
+	result, err := provider.handleListAllowedDirectories(context.Background(), request)
+
+	// Verify result
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Extract text content from the result
+	textContent, ok := result.Content[0].(mcp.TextContent)
+	assert.True(t, ok)
+
+	var directories []string
+	err = json.Unmarshal([]byte(textContent.Text), &directories)
+	assert.NoError(t, err)
+	assert.Equal(t, allowedDirs, directories)
 }

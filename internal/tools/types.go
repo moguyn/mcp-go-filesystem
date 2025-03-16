@@ -42,6 +42,11 @@ type PathValidator interface {
 	ValidatePath(requestedPath string) (string, error)
 }
 
+// AllowedDirectoriesProvider defines operations for listing allowed directories
+type AllowedDirectoriesProvider interface {
+	ListAllowedDirectories() []string
+}
+
 // FileContent represents the content of a file with its path
 type FileContent struct {
 	Path    string `json:"path"`
