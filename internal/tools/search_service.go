@@ -100,8 +100,33 @@ func (s *SearchService) searchInFile(filePath, query string, results *[]SearchRe
 	}
 	defer file.Close()
 
+	// Check if it's a binary file by reading the first few bytes
+	buf := make([]byte, 512)
+	n, err := file.Read(buf)
+	if err != nil {
+		return err
+	}
+
+	// Reset file pointer to beginning
+	_, err = file.Seek(0, 0)
+	if err != nil {
+		return err
+	}
+
+	// Check if file appears to be binary
+	if isBinary(buf[:n]) {
+		s.logger.Debug("Skipping binary file: %s", filePath)
+		return nil
+	}
+
 	// Read the file line by line
 	scanner := bufio.NewScanner(file)
+
+	// Increase buffer size to handle longer lines
+	const maxScanTokenSize = 1024 * 1024 // 1MB buffer
+	scanBuf := make([]byte, maxScanTokenSize)
+	scanner.Buffer(scanBuf, maxScanTokenSize)
+
 	lineNum := 1
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -117,4 +142,25 @@ func (s *SearchService) searchInFile(filePath, query string, results *[]SearchRe
 	}
 
 	return scanner.Err()
+}
+
+// isBinary checks if data appears to be binary content
+func isBinary(data []byte) bool {
+	// Check for null bytes, which are common in binary files
+	for _, b := range data {
+		if b == 0 {
+			return true
+		}
+	}
+
+	// Count control characters (except common ones like tab, newline)
+	controlCount := 0
+	for _, b := range data {
+		if (b < 32 && b != 9 && b != 10 && b != 13) || b >= 127 {
+			controlCount++
+		}
+	}
+
+	// If more than 10% are control characters, consider it binary
+	return controlCount > len(data)/10
 }
