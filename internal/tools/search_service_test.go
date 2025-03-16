@@ -3,6 +3,7 @@ package tools
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -292,5 +293,153 @@ func TestSearchService_searchInFile(t *testing.T) {
 				assert.True(t, found, "Expected to find a match on line %d", expectedLine)
 			}
 		})
+	}
+}
+
+func TestIsBinary(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     []byte
+		expected bool
+	}{
+		{
+			name:     "Text file with ASCII content",
+			data:     []byte("This is a plain text file with normal content."),
+			expected: false,
+		},
+		{
+			name:     "Text file with newlines and tabs",
+			data:     []byte("Line 1\nLine 2\tTabbed content"),
+			expected: false,
+		},
+		{
+			name:     "Binary file with null bytes",
+			data:     []byte{0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x00, 0x57, 0x6f, 0x72, 0x6c, 0x64},
+			expected: true,
+		},
+		{
+			name:     "Binary file with high control character ratio",
+			data:     []byte{0x48, 0x65, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x6c, 0x6f},
+			expected: true,
+		},
+		{
+			name:     "Text file with a few control characters",
+			data:     []byte("Hello\x01World"), // Just one control character
+			expected: false,
+		},
+		{
+			name:     "Empty data",
+			data:     []byte{},
+			expected: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := isBinary(tc.data)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestSearchService_searchInFile_BinaryDetection(t *testing.T) {
+	// Create a temporary directory for testing
+	tmpDir, err := os.MkdirTemp("", "test-search-binary-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a text file
+	textFile := filepath.Join(tmpDir, "text.txt")
+	textContent := "This is a text file with the word 'binary' in it"
+	if err := os.WriteFile(textFile, []byte(textContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a binary file
+	binaryFile := filepath.Join(tmpDir, "binary.bin")
+	binaryContent := []byte{0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+	binaryContent = append(binaryContent, []byte("contains the search term binary")...)
+	if err := os.WriteFile(binaryFile, binaryContent, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Initialize service with allowed directories
+	service := NewSearchService([]string{tmpDir})
+
+	// Test cases
+	tests := []struct {
+		name          string
+		query         string
+		path          string
+		expectedCount int
+		isBinary      bool
+	}{
+		{
+			name:          "Search in text file",
+			query:         "binary",
+			path:          textFile,
+			expectedCount: 1,
+			isBinary:      false,
+		},
+		{
+			name:          "Search in binary file",
+			query:         "binary",
+			path:          binaryFile,
+			expectedCount: 0, // Should be skipped due to binary detection
+			isBinary:      true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			results := make([]SearchResult, 0)
+			err := service.searchInFile(tc.path, tc.query, &results)
+
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectedCount, len(results))
+
+			// For text files, verify the content contains the query
+			if !tc.isBinary && len(results) > 0 {
+				for _, result := range results {
+					assert.Contains(t, result.Content, tc.query)
+				}
+			}
+		})
+	}
+}
+
+func TestSearchService_searchInFile_LongLines(t *testing.T) {
+	// Create a temporary directory for testing
+	tmpDir, err := os.MkdirTemp("", "test-search-longlines-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a file with a very long line
+	longLineFile := filepath.Join(tmpDir, "longline.txt")
+
+	// Create a line that's longer than the default scanner buffer (64KB)
+	// but shorter than our increased buffer size (1MB)
+	longLine := strings.Repeat("a", 100000) + "FINDME" + strings.Repeat("b", 100000)
+
+	if err := os.WriteFile(longLineFile, []byte(longLine), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Initialize service with allowed directories
+	service := NewSearchService([]string{tmpDir})
+
+	// Test searching in the file with a long line
+	results := make([]SearchResult, 0)
+	err = service.searchInFile(longLineFile, "FINDME", &results)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(results))
+
+	if len(results) > 0 {
+		assert.Contains(t, results[0].Content, "FINDME")
 	}
 }

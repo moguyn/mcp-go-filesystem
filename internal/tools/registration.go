@@ -243,6 +243,9 @@ func RegisterTools(s *server.MCPServer, allowedDirectories []string) {
 	listAllowedDirectoriesTool := mcp.NewTool("list_allowed_directories",
 		mcp.WithDescription("List all directories that are allowed to be accessed by the filesystem tools. "+
 			"This provides transparency about which directories can be manipulated using the filesystem tools."),
+		mcp.WithString("hi",
+			mcp.Description("no effect"),
+		),
 	)
 	s.AddTool(listAllowedDirectoriesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return provider.handleListAllowedDirectories(ctx, request)
@@ -251,7 +254,7 @@ func RegisterTools(s *server.MCPServer, allowedDirectories []string) {
 
 // Handler methods for ServiceProvider
 
-func (p *ServiceProvider) handleReadFile(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (p *ServiceProvider) handleReadFile(_ context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	path, ok := request.Params.Arguments["path"].(string)
 	if !ok {
 		return nil, errors.NewFileSystemError("read_file", "", errors.ErrInvalidArgument)
