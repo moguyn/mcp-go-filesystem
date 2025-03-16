@@ -19,6 +19,7 @@ type ServiceProvider struct {
 	directoryService DirectoryManager
 	searchService    SearchProvider
 	logger           *logging.Logger
+	allowedDirs      []string
 }
 
 // NewServiceProvider creates a new ServiceProvider
@@ -34,7 +35,13 @@ func NewServiceProvider(allowedDirectories []string) *ServiceProvider {
 		directoryService: directoryService,
 		searchService:    searchService,
 		logger:           logging.DefaultLogger("service_provider"),
+		allowedDirs:      allowedDirectories,
 	}
+}
+
+// ListAllowedDirectories returns the list of allowed directories
+func (p *ServiceProvider) ListAllowedDirectories() []string {
+	return p.allowedDirs
 }
 
 // RegisterTools registers all filesystem tools with the MCP server
@@ -231,6 +238,15 @@ func RegisterTools(s *server.MCPServer, allowedDirectories []string) {
 	s.AddTool(searchFilesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return provider.handleSearchFiles(ctx, request)
 	})
+
+	// Register list_allowed_directories tool
+	listAllowedDirectoriesTool := mcp.NewTool("list_allowed_directories",
+		mcp.WithDescription("List all directories that are allowed to be accessed by the filesystem tools. "+
+			"This provides transparency about which directories can be manipulated using the filesystem tools."),
+	)
+	s.AddTool(listAllowedDirectoriesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return provider.handleListAllowedDirectories(ctx, request)
+	})
 }
 
 // Handler methods for ServiceProvider
@@ -275,7 +291,7 @@ func (p *ServiceProvider) handleReadMultipleFiles(ctx context.Context, request m
 	return mcp.NewToolResultText(string(resultJSON)), nil
 }
 
-func (p *ServiceProvider) handleWriteFile(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (p *ServiceProvider) handleWriteFile(_ context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	path, ok := request.Params.Arguments["path"].(string)
 	if !ok {
 		return nil, errors.NewFileSystemError("write_file", "", errors.ErrInvalidArgument)
@@ -298,7 +314,7 @@ func (p *ServiceProvider) handleWriteFile(ctx context.Context, request mcp.CallT
 	return mcp.NewToolResultText(fmt.Sprintf("File written successfully: %s", path)), nil
 }
 
-func (p *ServiceProvider) handleEditFile(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (p *ServiceProvider) handleEditFile(_ context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	path, ok := request.Params.Arguments["path"].(string)
 	if !ok {
 		return nil, errors.NewFileSystemError("edit_file", "", errors.ErrInvalidArgument)
@@ -326,7 +342,7 @@ func (p *ServiceProvider) handleEditFile(ctx context.Context, request mcp.CallTo
 	return mcp.NewToolResultText(fmt.Sprintf("File edited successfully: %s (lines %d-%d)", path, int(startLine), int(endLine))), nil
 }
 
-func (p *ServiceProvider) handleListDirectory(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (p *ServiceProvider) handleListDirectory(_ context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	path, ok := request.Params.Arguments["path"].(string)
 	if !ok {
 		return nil, errors.NewFileSystemError("list_directory", "", errors.ErrInvalidArgument)
@@ -359,7 +375,7 @@ func (p *ServiceProvider) handleCreateDirectory(ctx context.Context, request mcp
 	return mcp.NewToolResultText(fmt.Sprintf("Directory created successfully: %s", path)), nil
 }
 
-func (p *ServiceProvider) handleDeleteDirectory(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (p *ServiceProvider) handleDeleteDirectory(_ context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	path, ok := request.Params.Arguments["path"].(string)
 	if !ok {
 		return nil, errors.NewFileSystemError("delete_directory", "", errors.ErrInvalidArgument)
@@ -377,7 +393,7 @@ func (p *ServiceProvider) handleDeleteDirectory(ctx context.Context, request mcp
 	return mcp.NewToolResultText(fmt.Sprintf("Directory deleted successfully: %s", path)), nil
 }
 
-func (p *ServiceProvider) handleDeleteFile(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (p *ServiceProvider) handleDeleteFile(_ context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	path, ok := request.Params.Arguments["path"].(string)
 	if !ok {
 		return nil, errors.NewFileSystemError("delete_file", "", errors.ErrInvalidArgument)
@@ -390,7 +406,7 @@ func (p *ServiceProvider) handleDeleteFile(ctx context.Context, request mcp.Call
 	return mcp.NewToolResultText(fmt.Sprintf("File deleted successfully: %s", path)), nil
 }
 
-func (p *ServiceProvider) handleMoveFile(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (p *ServiceProvider) handleMoveFile(_ context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	sourcePath, ok := request.Params.Arguments["source_path"].(string)
 	if !ok {
 		return nil, errors.NewFileSystemError("move_file", "", errors.ErrInvalidArgument)
@@ -408,7 +424,7 @@ func (p *ServiceProvider) handleMoveFile(ctx context.Context, request mcp.CallTo
 	return mcp.NewToolResultText(fmt.Sprintf("File moved successfully from %s to %s", sourcePath, destinationPath)), nil
 }
 
-func (p *ServiceProvider) handleCopyFile(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (p *ServiceProvider) handleCopyFile(_ context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	sourcePath, ok := request.Params.Arguments["source_path"].(string)
 	if !ok {
 		return nil, errors.NewFileSystemError("copy_file", "", errors.ErrInvalidArgument)
@@ -426,7 +442,7 @@ func (p *ServiceProvider) handleCopyFile(ctx context.Context, request mcp.CallTo
 	return mcp.NewToolResultText(fmt.Sprintf("File copied successfully from %s to %s", sourcePath, destinationPath)), nil
 }
 
-func (p *ServiceProvider) handleSearchFiles(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (p *ServiceProvider) handleSearchFiles(_ context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	query, ok := request.Params.Arguments["query"].(string)
 	if !ok {
 		return nil, errors.NewFileSystemError("search_files", "", errors.ErrInvalidArgument)
@@ -454,4 +470,16 @@ func (p *ServiceProvider) handleSearchFiles(ctx context.Context, request mcp.Cal
 	}
 
 	return mcp.NewToolResultText(string(resultsJSON)), nil
+}
+
+func (p *ServiceProvider) handleListAllowedDirectories(_ context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	directories := p.ListAllowedDirectories()
+
+	// Convert directories to JSON
+	directoriesJSON, err := json.Marshal(directories)
+	if err != nil {
+		return nil, errors.NewFileSystemError("list_allowed_directories", "", err)
+	}
+
+	return mcp.NewToolResultText(string(directoriesJSON)), nil
 }

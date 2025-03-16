@@ -2,7 +2,6 @@ package tools
 
 import (
 	"fmt"
-	"os"
 	"os/user"
 	"path/filepath"
 	"strings"
@@ -56,5 +55,7 @@ func ValidatePath(requestedPath string, allowedDirectories []string) (string, er
 		}
 	}
 
-	return "", os.ErrPermission
+	// Create a formatted list of allowed directories for the error message
+	allowedDirsStr := strings.Join(allowedDirectories, ", ")
+	return "", fmt.Errorf("path not allowed: %s. Allowed directories: [%s]", requestedPath, allowedDirsStr)
 }
