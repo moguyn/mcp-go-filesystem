@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/moguyn/mcp-go-filesystem/compare/v0.1.1...v0.1.2) (2025-03-16)
+
+
+### Bug Fixes
+
+* search in file ([#24](https://github.com/moguyn/mcp-go-filesystem/issues/24)) ([d842b4d](https://github.com/moguyn/mcp-go-filesystem/commit/d842b4daf7ef0869b755d4ae96ae35cd27c955e2))
+
 ## [0.1.1](https://github.com/moguyn/mcp-go-filesystem/compare/v0.1.0...v0.1.1) (2025-03-16)
 
 
