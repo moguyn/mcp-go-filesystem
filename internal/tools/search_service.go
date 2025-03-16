@@ -46,15 +46,19 @@ func (s *SearchService) SearchFiles(query string, path string, recursive bool) (
 		}
 		return nil, errors.NewFileSystemError("search_files", path, err)
 	}
-	if !info.IsDir() {
-		return nil, errors.NewFileSystemError("search_files", path, errors.ErrInvalidOperation)
-	}
 
 	// Perform the search
 	results := make([]SearchResult, 0)
-	err = s.searchInDirectory(validPath, query, recursive, &results)
-	if err != nil {
-		return nil, errors.NewFileSystemError("search_files", path, err)
+	if info.IsDir() {
+		err = s.searchInDirectory(validPath, query, recursive, &results)
+		if err != nil {
+			return nil, errors.NewFileSystemError("search_files", path, err)
+		}
+	} else {
+		err = s.searchInFile(validPath, query, &results)
+		if err != nil {
+			return nil, errors.NewFileSystemError("search_files", path, err)
+		}
 	}
 
 	return results, nil
