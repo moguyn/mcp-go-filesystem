@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/moguyn/mcp-go-filesystem/compare/v0.1.0...v0.1.1) (2025-03-16)
+
+
+### Bug Fixes
+
+* add list_allowed_directories tool ([#22](https://github.com/moguyn/mcp-go-filesystem/issues/22)) ([6460dff](https://github.com/moguyn/mcp-go-filesystem/commit/6460dffaf42166aa2ae7896511eb081cd1c63929))
+
 ## [0.1.0](https://github.com/moguyn/mcp-go-filesystem/compare/v0.0.7...v0.1.0) (2025-03-15)
 
 
