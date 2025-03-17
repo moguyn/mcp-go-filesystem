@@ -52,10 +52,9 @@ func RegisterTools(s *server.MCPServer, allowedDirectories []string) {
 	// Register read_file tool
 	readFileTool := mcp.NewTool("read_file",
 		mcp.WithDescription(`description: Read the complete contents of a file from the file system. This tool safely reads files only within allowed directories and handles various encodings. Returns the full text content of the specified file.
-demo_commands: [
-- path: /allowed/directory/file.txt
-- path: /allowed/directory/documents/document.md
-]`),
+demo_commands:
+- /allowed/directory/file.txt
+- /allowed/directory/documents/document.md`),
 		mcp.WithString("path",
 			mcp.Required(),
 			mcp.Description("Path to the file to read"),
@@ -68,14 +67,13 @@ demo_commands: [
 	// Register read_multiple_files tool
 	readMultipleFilesTool := mcp.NewTool("read_multiple_files",
 		mcp.WithDescription(`description: Read multiple files in a single operation. This is more efficient than making separate read requests when analyzing related files. Provide a JSON array of file paths, and receive a JSON object mapping each path to its content.
-demo_commands: [
+demo_commands:
 - paths: |
     [
       "/allowed/directory/config.json", 
       "/allowed/directory/settings.yaml", 
       "/allowed/directory/data/sample.txt"
-    ]
-]`),
+    ]`),
 		mcp.WithString("paths",
 			mcp.Required(),
 			mcp.Description("JSON array of paths to the files to read"),
@@ -88,13 +86,12 @@ demo_commands: [
 	// Register write_file tool
 	writeFileTool := mcp.NewTool("write_file",
 		mcp.WithDescription(`description: Write content to a file, creating it if it doesn't exist or overwriting/appending if it does. Use the append flag to add content to the end of an existing file rather than replacing its contents.
-demo_commands: [
+demo_commands:
 - path: /allowed/directory/new_file.txt
   content: Hello, world!
 - path: /allowed/directory/logs/app.log
   content: New log entry
-  append: true
-]`),
+  append: true`),
 		mcp.WithString("path",
 			mcp.Required(),
 			mcp.Description("Path to the file to write"),
@@ -114,7 +111,7 @@ demo_commands: [
 	// Register edit_file tool
 	editFileTool := mcp.NewTool("edit_file",
 		mcp.WithDescription(`description: Edit a specific portion of a file by replacing lines between start_line and end_line with new content. This is useful for making precise changes without rewriting the entire file. Line numbers are 1-indexed.
-demo_commands: [
+demo_commands:
 - path: /allowed/directory/config.json
   content: "  \"debug\": true,"
   start_line: 5
@@ -122,8 +119,7 @@ demo_commands: [
 - path: /allowed/directory/src/main.go
   content: "// TODO: Implement error handling"
   start_line: 42
-  end_line: 45
-]`),
+  end_line: 45`),
 		mcp.WithString("path",
 			mcp.Required(),
 			mcp.Description("Path to the file to edit"),
@@ -148,11 +144,10 @@ demo_commands: [
 	// Register list_directory tool
 	listDirectoryTool := mcp.NewTool("list_directory",
 		mcp.WithDescription(`description: List all files and subdirectories in a specified directory, including metadata like file size, modification time, and file type. Returns a JSON array of entry objects.
-demo_commands: [
-- path: /allowed/directory
-- path: /allowed/directory/src
-- path: /allowed/directory/data
-]`),
+demo_commands:
+- /allowed/directory
+- /allowed/directory/src
+- /allowed/directory/data`),
 		mcp.WithString("path",
 			mcp.Required(),
 			mcp.Description("Path to the directory to list"),
@@ -165,10 +160,9 @@ demo_commands: [
 	// Register create_directory tool
 	createDirectoryTool := mcp.NewTool("create_directory",
 		mcp.WithDescription(`description: Create a new directory at the specified path. Automatically creates any necessary parent directories that don't exist (similar to mkdir -p). Only works within allowed directories.
-demo_commands: [
-- path: /allowed/directory/new_directory
-- path: /allowed/directory/parent/child/grandchild
-]`),
+demo_commands:
+- /allowed/directory/new_directory
+- /allowed/directory/parent/child/grandchild`),
 		mcp.WithString("path",
 			mcp.Required(),
 			mcp.Description("Path to the directory to create"),
@@ -181,11 +175,10 @@ demo_commands: [
 	// Register delete_directory tool
 	deleteDirectoryTool := mcp.NewTool("delete_directory",
 		mcp.WithDescription(`description: Delete a directory at the specified path. By default, only empty directories can be deleted. Set recursive to true to delete all contents within the directory as well.
-demo_commands: [
-- path: /allowed/directory/empty_dir
+demo_commands:
+- /allowed/directory/empty_dir
 - path: /allowed/directory/project_backup
-  recursive: true
-]`),
+  recursive: true`),
 		mcp.WithString("path",
 			mcp.Required(),
 			mcp.Description("Path to the directory to delete"),
@@ -201,10 +194,9 @@ demo_commands: [
 	// Register delete_file tool
 	deleteFileTool := mcp.NewTool("delete_file",
 		mcp.WithDescription(`description: Delete a file at the specified path. This permanently removes the file from the filesystem. Only works within allowed directories.
-demo_commands: [
-- path: /allowed/directory/temp.txt
-- path: /allowed/directory/logs/old_log.txt
-]`),
+demo_commands:
+- /allowed/directory/temp.txt
+- /allowed/directory/logs/old_log.txt`),
 		mcp.WithString("path",
 			mcp.Required(),
 			mcp.Description("Path to the file to delete"),
@@ -217,12 +209,11 @@ demo_commands: [
 	// Register move_file tool
 	moveFileTool := mcp.NewTool("move_file",
 		mcp.WithDescription(`description: Move or rename a file from source_path to destination_path. This is equivalent to both moving a file to a different directory and renaming it in the same directory. Both paths must be within allowed directories.
-demo_commands: [
+demo_commands:
 - source_path: /allowed/directory/old_name.txt
   destination_path: /allowed/directory/new_name.txt
 - source_path: /allowed/directory/file.txt
-  destination_path: /allowed/directory/subfolder/file.txt
-]`),
+  destination_path: /allowed/directory/subfolder/file.txt`),
 		mcp.WithString("source_path",
 			mcp.Required(),
 			mcp.Description("Path to the file to move"),
@@ -239,12 +230,11 @@ demo_commands: [
 	// Register copy_file tool
 	copyFileTool := mcp.NewTool("copy_file",
 		mcp.WithDescription(`description: Copy a file from source_path to destination_path while keeping the original file intact. This creates a duplicate of the file at the new location. Both paths must be within allowed directories.
-demo_commands: [
+demo_commands:
 - source_path: /allowed/directory/template.html
   destination_path: /allowed/directory/pages/new_page.html
 - source_path: /allowed/directory/config.json
-  destination_path: /allowed/directory/config_backup.json
-]`),
+  destination_path: /allowed/directory/config_backup.json`),
 		mcp.WithString("source_path",
 			mcp.Required(),
 			mcp.Description("Path to the file to copy"),
@@ -261,14 +251,13 @@ demo_commands: [
 	// Register search_files tool
 	searchFilesTool := mcp.NewTool("search_files",
 		mcp.WithDescription(`description: Search for text content within files in a directory. Returns matching files with line numbers and surrounding context for each match. Set recursive to true to search in all subdirectories recursively.
-demo_commands: [
+demo_commands:
 - query: function main
   path: /allowed/directory/src
   recursive: true
 - query: TODO
   path: /allowed/directory
-  recursive: false
-]`),
+  recursive: false`),
 		mcp.WithString("query",
 			mcp.Required(),
 			mcp.Description("Text to search for"),
@@ -288,9 +277,8 @@ demo_commands: [
 	// Register list_allowed_directories tool
 	listAllowedDirectoriesTool := mcp.NewTool("list_allowed_directories",
 		mcp.WithDescription(`description: List all directories that are allowed to be accessed by the filesystem tools. This helps you understand which paths you can work with using the other tools. The response is a JSON array of directory paths.
-demo_commands: [
-- hi: ""
-]`),
+demo_commands:
+- hi: ""`),
 		mcp.WithString("hi",
 			mcp.Description("no effect"),
 		),
