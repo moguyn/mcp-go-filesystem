@@ -104,6 +104,18 @@ func (s *SearchService) searchInFile(filePath, query string, results *[]SearchRe
 	}
 	defer file.Close()
 
+	// Check if the file is empty
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return err
+	}
+
+	// Skip empty files
+	if fileInfo.Size() == 0 {
+		s.logger.Debug("Skipping empty file: %s", filePath)
+		return nil
+	}
+
 	// Check if it's a binary file by reading the first few bytes
 	buf := make([]byte, 512)
 	n, err := file.Read(buf)
