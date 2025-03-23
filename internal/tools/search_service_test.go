@@ -155,6 +155,7 @@ func TestSearchService_searchInDirectory(t *testing.T) {
 	files := map[string]string{
 		filepath.Join(tmpDir, "file1.txt"):       "This is a test file with test content",
 		filepath.Join(tmpDir, "file2.txt"):       "Another file without the search term",
+		filepath.Join(tmpDir, "file3.txt"):       "",
 		filepath.Join(subDir, "nested-file.txt"): "Nested file with test content",
 	}
 
