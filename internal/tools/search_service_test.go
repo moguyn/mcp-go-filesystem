@@ -256,6 +256,13 @@ func TestSearchService_searchInFile(t *testing.T) {
 			expectedLines: []int{3}, // Only Line 3 contains "another"
 		},
 		{
+			name:          "Search with case insensitive match",
+			query:         "TEST",
+			path:          multilineFile,
+			expectedCount: 2,
+			expectedLines: []int{2, 3}, // Line 2 and Line 3 contain "TEST"
+		},
+		{
 			name:          "Search with no matches",
 			query:         "nonexistent",
 			path:          multilineFile,
@@ -276,7 +283,7 @@ func TestSearchService_searchInFile(t *testing.T) {
 			foundLines := make([]int, 0, len(results))
 			for _, result := range results {
 				// Check that the result contains the query
-				assert.Contains(t, result.Content, tc.query)
+				assert.Contains(t, strings.ToLower(result.Content), strings.ToLower(tc.query))
 				assert.Equal(t, tc.path, result.Path)
 				foundLines = append(foundLines, result.Line)
 			}

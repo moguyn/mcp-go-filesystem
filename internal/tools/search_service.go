@@ -127,19 +127,21 @@ func (s *SearchService) searchInFile(filePath, query string, results *[]SearchRe
 	scanner := bufio.NewScanner(file)
 
 	// Increase buffer size to handle longer lines
-	const maxScanTokenSize = 1024 * 1024 // 1MB buffer
+	const maxScanTokenSize = 1024 * 1024 * 10 // 10MB buffer
 	scanBuf := make([]byte, maxScanTokenSize)
 	scanner.Buffer(scanBuf, maxScanTokenSize)
 
 	lineNum := 1
+	query = strings.ToLower(query)
 	for scanner.Scan() {
-		line := scanner.Text()
+		content := scanner.Text()
+		line := strings.ToLower(content)
 		if strings.Contains(line, query) {
 			// Add the result
 			*results = append(*results, SearchResult{
 				Path:    filePath,
 				Line:    lineNum,
-				Content: line,
+				Content: content,
 			})
 		}
 		lineNum++
