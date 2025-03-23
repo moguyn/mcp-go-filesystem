@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/moguyn/mcp-go-filesystem/compare/v0.1.2...v0.1.3) (2025-03-23)
+
+
+### Bug Fixes
+
+* make file search case insensitive ([#27](https://github.com/moguyn/mcp-go-filesystem/issues/27)) ([e39a17d](https://github.com/moguyn/mcp-go-filesystem/commit/e39a17da86c39d06dd5255f9f6d45919dbd55522))
+
 ## [0.1.2](https://github.com/moguyn/mcp-go-filesystem/compare/v0.1.1...v0.1.2) (2025-03-16)
 
 
