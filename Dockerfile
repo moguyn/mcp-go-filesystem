@@ -1,4 +1,4 @@
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
@@ -6,7 +6,8 @@ WORKDIR /app
 COPY go.mod go.sum* ./
 
 # Download dependencies
-RUN go mod download
+RUN go mod vendor
+RUN go mod tidy
 
 # Copy source code
 COPY . .
