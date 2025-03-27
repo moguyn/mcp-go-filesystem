@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/moguyn/mcp-go-filesystem/compare/v0.1.4...v0.1.5) (2025-03-27)
+
+
+### Bug Fixes
+
+* docker setup ([#31](https://github.com/moguyn/mcp-go-filesystem/issues/31)) ([9eb0197](https://github.com/moguyn/mcp-go-filesystem/commit/9eb0197426d0d556e007efcf63b7c42db2b6c4f4))
+
 ## [0.1.4](https://github.com/moguyn/mcp-go-filesystem/compare/v0.1.3...v0.1.4) (2025-03-23)
 
 
