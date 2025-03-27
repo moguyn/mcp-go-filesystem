@@ -3,7 +3,7 @@
 # Binary name
 BINARY_NAME=mcp-server-filesystem
 # Docker image name
-DOCKER_IMAGE=mcp/filesystem-go
+DOCKER_IMAGE=verrerie/filesystem-go
 # Main package path
 MAIN_PACKAGE=./cmd/server
 # Build directory
@@ -74,7 +74,7 @@ check: fmt vet lint ## Run all code quality checks
 
 # Install dependencies
 deps: ## Install dependencies
-	go mod download
+	go mod vendor
 	go mod tidy
 
 # Build Docker image

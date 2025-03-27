@@ -1,4 +1,4 @@
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
@@ -6,7 +6,8 @@ WORKDIR /app
 COPY go.mod go.sum* ./
 
 # Download dependencies
-RUN go mod download
+RUN go mod vendor
+RUN go mod tidy
 
 # Copy source code
 COPY . .
@@ -25,8 +26,10 @@ COPY --from=builder /app/mcp-server-filesystem /app/mcp-server-filesystem
 # Create a directory for projects
 RUN mkdir -p /projects
 
-# Set the entrypoint
-ENTRYPOINT ["/app/mcp-server-filesystem"]
+EXPOSE 38085
 
-# Default command is to serve the /projects directory
-CMD ["/projects"] 
+ENV MCP_SERVER_MODE=sse
+ENV MCP_LISTEN_ADDR=0.0.0.0:38085
+
+# Set the entrypoint
+ENTRYPOINT ["/app/mcp-server-filesystem", "/projects"]
