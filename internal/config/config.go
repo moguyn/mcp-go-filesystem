@@ -18,6 +18,10 @@ const (
 	StdioMode ServerMode = "stdio"
 	// SSEMode indicates the server should run as an HTTP server with SSE
 	SSEMode ServerMode = "sse"
+
+	// Environment variable names
+	envServerMode = "MCP_SERVER_MODE"
+	envListenAddr = "MCP_LISTEN_ADDR"
 )
 
 // Config holds the configuration for the filesystem server
@@ -54,7 +58,23 @@ func ParseCommandLineArgs(version string, args []string) (*Config, error) {
 	// Initialize default configuration
 	config := DefaultConfig(version)
 
-	// Parse command line options
+	// Check environment variables first
+	if mode := os.Getenv(envServerMode); mode != "" {
+		switch strings.ToLower(mode) {
+		case "stdio":
+			config.ServerMode = StdioMode
+		case "sse":
+			config.ServerMode = SSEMode
+		default:
+			return nil, errors.NewFileSystemError("parse_args", "", fmt.Errorf("invalid server mode in environment: %s", mode))
+		}
+	}
+
+	if addr := os.Getenv(envListenAddr); addr != "" {
+		config.ListenAddr = addr
+	}
+
+	// Parse command line options (these will override environment variables)
 	for i := 1; i < len(args); i++ {
 		arg := args[i]
 
@@ -132,9 +152,14 @@ func PrintUsage(version string) {
 	fmt.Fprintln(os.Stderr, "  --listen=<address>   HTTP listen address for SSE mode (default: 0.0.0.0:38085)")
 	fmt.Fprintln(os.Stderr, "  --log-level=<level>  Log level: DEBUG, INFO, WARN, ERROR, FATAL (default: INFO)")
 	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "Environment Variables:")
+	fmt.Fprintln(os.Stderr, "  MCP_SERVER_MODE      Server mode (overridden by --mode)")
+	fmt.Fprintln(os.Stderr, "  MCP_LISTEN_ADDR      HTTP listen address (overridden by --listen)")
+	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "The server will only allow operations within the specified directories.")
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Examples:")
 	fmt.Fprintln(os.Stderr, "  mcp-server-filesystem /path/to/dir1 /path/to/dir2")
 	fmt.Fprintln(os.Stderr, "  mcp-server-filesystem --mode=sse --listen=0.0.0.0:38085 --log-level=DEBUG /path/to/dir")
+	fmt.Fprintln(os.Stderr, "  MCP_SERVER_MODE=sse MCP_LISTEN_ADDR=0.0.0.0:38086 mcp-server-filesystem /path/to/dir")
 }

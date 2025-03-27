@@ -26,8 +26,10 @@ COPY --from=builder /app/mcp-server-filesystem /app/mcp-server-filesystem
 # Create a directory for projects
 RUN mkdir -p /projects
 
-# Set the entrypoint
-ENTRYPOINT ["/app/mcp-server-filesystem"]
+EXPOSE 38085
 
-# Default command is to serve the /projects directory
-CMD ["/projects"] 
+ENV MCP_SERVER_MODE=sse
+ENV MCP_LISTEN_ADDR=0.0.0.0:38085
+
+# Set the entrypoint
+ENTRYPOINT ["/app/mcp-server-filesystem", "/projects"]
